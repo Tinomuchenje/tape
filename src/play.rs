@@ -1,4 +1,4 @@
-//! `rec-rs play FILE`: show a file in an AVPlayer window (QuickTime's
+//! `tape play FILE`: show a file in an AVPlayer window (QuickTime's
 //! engine, with exact audio-output latency compensation). A reference
 //! player for end-to-end sync tests: record its window with system audio
 //! and run scripts/synccheck.py on the result.
@@ -33,7 +33,7 @@ pub fn play(path: &Path, secs: f64, size: &str) -> Result<()> {
         )
     };
     unsafe { win.setReleasedWhenClosed(false) };
-    win.setTitle(&ns("rec-play"));
+    win.setTitle(&ns("tape-play"));
     let view = win.contentView().context("content view")?;
     view.setWantsLayer(true);
     let url = NSURL::fileURLWithPath(&ns(abs.to_str().context("path")?));

@@ -26,9 +26,9 @@ use compose::{Corner, PipSpec, Shape};
 use writer::Codec;
 
 #[derive(Parser)]
-#[command(name = "rec-rs", version, about = "Native macOS screen recorder (ScreenCaptureKit + VideoToolbox + AVAssetWriter)")]
+#[command(name = "tape", version, about = "Native macOS screen recorder (ScreenCaptureKit + VideoToolbox + AVAssetWriter)")]
 struct Cli {
-    /// Without a subcommand, rec starts the menu bar app.
+    /// Without a subcommand, tape starts the menu bar app.
     #[command(subcommand)]
     cmd: Option<Cmd>,
 }
@@ -48,7 +48,7 @@ enum Cmd {
         /// Open the settings window at launch.
         #[arg(long)]
         settings: bool,
-        /// Capture this window (ID from `rec-rs devices`) instead of the display.
+        /// Capture this window (ID from `tape devices`) instead of the display.
         #[arg(long, value_name = "ID")]
         window: Option<u32>,
     },
@@ -68,7 +68,7 @@ enum Cmd {
         #[arg(long)]
         delete: bool,
     },
-    /// Pause the running recording (resume with `rec-rs resume`).
+    /// Pause the running recording (resume with `tape resume`).
     Pause,
     /// Resume a paused recording.
     Resume,
@@ -100,17 +100,17 @@ enum Cmd {
 
 #[derive(Args)]
 pub struct RecordArgs {
-    /// Output file (.mov or .mp4). Default: ~/Movies/rec-<timestamp>.mov
+    /// Output file (.mov or .mp4). Default: ~/Movies/tape-<timestamp>.mov
     #[arg(short, long, visible_alias = "out")]
     output: Option<PathBuf>,
-    /// Display number from `rec-rs devices` (1 = main display).
+    /// Display number from `tape devices` (1 = main display).
     #[arg(short, long, default_value_t = 1)]
     display: usize,
     /// Record only this region of the display: X,Y,WIDTH,HEIGHT in points
     /// from the display's top-left corner.
     #[arg(long, value_name = "X,Y,W,H", conflicts_with = "window")]
     region: Option<String>,
-    /// Record a single window: window ID or app/title substring (`rec devices`).
+    /// Record a single window: window ID or app/title substring (`tape devices`).
     #[arg(long, value_name = "WINDOW")]
     window: Option<String>,
     /// Output size: 720p, 1080p, 1440p, 4k, native, or WIDTHxHEIGHT. The
@@ -235,13 +235,13 @@ pub struct RecordArgs {
     #[arg(long, value_name = "MS", default_value_t = 0.0, allow_hyphen_values = true)]
     mic_offset_ms: f64,
     /// Keep the last SECS seconds (15-300) of encoded video and audio in
-    /// memory; `rec-rs save-replay` writes them to an MP4.
+    /// memory; `tape save-replay` writes them to an MP4.
     #[arg(long, value_name = "SECS")]
     replay: Option<f64>,
     /// Stream to an RTMP(S) URL or a WHIP endpoint (http(s)://.../whip).
     /// youtube, twitch and kick are shortcuts. Repeat it to stream to
-    /// several at once. The key comes from $REC_STREAM_KEY or the Keychain
-    /// (`rec-rs stream-key URL`).
+    /// several at once. The key comes from $TAPE_STREAM_KEY or the Keychain
+    /// (`tape stream-key URL`).
     #[arg(long, value_name = "URL")]
     stream: Vec<String>,
     /// Do not write a recording file (replay buffer / streaming only).
@@ -341,7 +341,7 @@ fn live_box(s: &str) -> Result<(usize, usize)> {
     })
 }
 
-/// `rec-rs stream-key DEST`: store (or delete) a stream key in the Keychain.
+/// `tape stream-key DEST`: store (or delete) a stream key in the Keychain.
 fn stream_key(dest: &str, delete: bool) -> Result<()> {
     let url = live::destination_url(dest);
     if delete {
@@ -399,7 +399,7 @@ fn default_output() -> PathBuf {
         let t = libc::time(std::ptr::null_mut());
         let mut tm: libc::tm = std::mem::zeroed();
         libc::localtime_r(&t, &mut tm);
-        libc::strftime(buf.as_mut_ptr() as *mut _, buf.len(), c"rec-%Y-%m-%d-%H%M%S.mov".as_ptr(), &tm)
+        libc::strftime(buf.as_mut_ptr() as *mut _, buf.len(), c"tape-%Y-%m-%d-%H%M%S.mov".as_ptr(), &tm)
     };
     let name = String::from_utf8_lossy(&buf[..n]).to_string();
     let dir = std::env::var_os("HOME").map(|h| PathBuf::from(h).join("Movies")).unwrap_or_default();
@@ -417,7 +417,7 @@ pub fn prepare(a: RecordArgs) -> Result<(record::Options, Option<screen::Target>
         Some(a.mic.as_deref().filter(|m| *m != "default").and_then(|sel| {
             let p = camera::pick_mic(sel, a.mic_name.as_deref());
             if let Some(w) = p.warning {
-                eprintln!("rec: warning: {w}");
+                eprintln!("tape: warning: {w}");
                 mic_warning = Some(w);
             }
             p.id
@@ -483,7 +483,7 @@ pub fn prepare(a: RecordArgs) -> Result<(record::Options, Option<screen::Target>
     } else {
         let mut displays = screen::displays()?;
         if a.display == 0 || a.display > displays.len() {
-            bail!("display {} not found: displays are numbered 1..={} (see `rec-rs devices`)", a.display, displays.len());
+            bail!("display {} not found: displays are numbered 1..={} (see `tape devices`)", a.display, displays.len());
         }
         let d = displays.swap_remove(a.display - 1);
         let scale = d.pixels.0 as f64 / d.points.0.max(1) as f64;
@@ -546,7 +546,7 @@ pub fn prepare(a: RecordArgs) -> Result<(record::Options, Option<screen::Target>
         });
         if !a.quiet {
             eprintln!(
-                "rec: live encode {lw}x{lh} {} {:.1} Mb/s, keyframe every {} s",
+                "tape: live encode {lw}x{lh} {} {:.1} Mb/s, keyframe every {} s",
                 if hevc { "HEVC" } else { "H.264" },
                 kbps as f64 / 1000.0,
                 a.keyframe
@@ -572,9 +572,9 @@ pub fn prepare(a: RecordArgs) -> Result<(record::Options, Option<screen::Target>
     Ok((opts, target))
 }
 
-/// Parse a `rec record ...` argument list (used by the GUI).
+/// Parse a `tape record ...` argument list (used by the GUI).
 pub fn parse_record_args(args: &[&str]) -> Result<RecordArgs> {
-    let mut v = vec!["rec-rs", "record"];
+    let mut v = vec!["tape", "record"];
     v.extend_from_slice(args);
     match Cli::try_parse_from(v)?.cmd {
         Some(Cmd::Record(a)) => Ok(a),
@@ -590,13 +590,13 @@ fn record(a: RecordArgs) -> Result<()> {
     let stats = record::run(opts, target)?;
     if !wrote {
         if !quiet {
-            eprintln!("rec: stopped ({} video frames, {} dropped)", stats.video_frames_out, stats.video_drops);
+            eprintln!("tape: stopped ({} video frames, {} dropped)", stats.video_frames_out, stats.video_drops);
         }
         return Ok(());
     }
     if !quiet {
         eprintln!(
-            "rec: saved {} ({} video frames, {} duplicated, {} dropped; audio buffers sys {} mic {} mix {}, {} dropped, {} clipped samples)",
+            "tape: saved {} ({} video frames, {} duplicated, {} dropped; audio buffers sys {} mic {} mix {}, {} dropped, {} clipped samples)",
             out.display(),
             stats.video_frames_out,
             stats.video_dups,
@@ -608,27 +608,27 @@ fn record(a: RecordArgs) -> Result<()> {
             stats.audio_clipped_samples
         );
         if let Some(m) = &stats.mic_summary {
-            eprintln!("rec: mic: {m}");
+            eprintln!("tape: mic: {m}");
         }
         if stats.camera_file_frames > 0 {
             eprintln!(
-                "rec: saved {} (camera alone: {} video frames, {} dropped)",
+                "tape: saved {} (camera alone: {} video frames, {} dropped)",
                 writer::camera_path(&out).display(),
                 stats.camera_file_frames,
                 stats.camera_file_drops
             );
         }
     }
-    if std::env::var_os("REC_DEBUG").is_some() {
+    if std::env::var_os("TAPE_DEBUG").is_some() {
         let avg = |sum: f64, n: u64| if n == 0 { 0.0 } else { sum / n as f64 * 1000.0 };
         eprintln!(
-            "rec: debug: encoder busy retries {}, audio gaps filled {}, frames reused {}",
+            "tape: debug: encoder busy retries {}, audio gaps filled {}, frames reused {}",
             stats.video_retries,
             stats.audio_gaps_filled,
             stats.frames_reused
         );
         eprintln!(
-            "rec: debug: frame arrival latency  screen avg {:.1} ms max {:.1} ms ({} frames)  camera avg {:.1} ms max {:.1} ms ({} frames)",
+            "tape: debug: frame arrival latency  screen avg {:.1} ms max {:.1} ms ({} frames)  camera avg {:.1} ms max {:.1} ms ({} frames)",
             avg(stats.screen_latency_sum, stats.screen_frames_in),
             stats.screen_latency_max * 1000.0,
             stats.screen_frames_in,
@@ -714,7 +714,7 @@ fn main() {
         Cmd::Play { file, secs, size } => play::play(&file, secs, &size),
     };
     if let Err(e) = r {
-        eprintln!("rec: error: {e:#}");
+        eprintln!("tape: error: {e:#}");
         std::process::exit(1);
     }
 }

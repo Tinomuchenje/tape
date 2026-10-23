@@ -6,18 +6,18 @@
 # Shows scripts/testcard.swift's static text card 1:1 on a 5K (2x) display,
 # behind other windows, takes a lossless `screencapture` of it (converted
 # to sRGB, the color space recordings are made in) as the reference, then
-# records that window with rec-rs in several configurations and scores the
+# records that window with tape in several configurations and scores the
 # middle second of each against the reference scaled to the output size
 # with Lanczos: SSIM (Y), PSNR (Y) and VMAF (4K model).
 #
 # A case is NAME:ARGS (ARGS with commas for spaces), recorded with
-# `rec-rs record --window ID --no-mic --no-system-audio -t 4 ARGS`.
+# `tape record --window ID --no-mic --no-system-audio -t 4 ARGS`.
 # Stream cases (NAME:stream:ARGS) publish to a local MediaMTX and score the
 # server's recording instead.
 set -eu
 cd "$(dirname "$0")/.."
-REC=${REC:-dist/rec-rs}
-OUT="${REC_TEST_DIR:-$HOME/Movies/rec-rs-tests}/quality"
+TAPE=${TAPE:-dist/tape}
+OUT="${TAPE_TEST_DIR:-$HOME/Movies/tape-tests}/quality"
 mkdir -p "$OUT"
 CASES=${*:-"4k-auto:-r,4k 4k-prores:-r,4k,--codec,prores 1080-auto:-r,1080p"}
 
@@ -63,7 +63,7 @@ for c in $CASES; do
       (cd "$M" && exec mediamtx mediamtx.yml >"$M/server.log" 2>&1) &
       mpid=$!; sleep 2
       # shellcheck disable=SC2086
-      REC_STREAM_KEY=quality "$REC" record -q --window "$WIN" --no-mic --no-system-audio --no-record -t 8 -o "$OUT/none.mov" $args >/dev/null 2>"$OUT/$name.log" || true
+      TAPE_STREAM_KEY=quality "$TAPE" record -q --window "$WIN" --no-mic --no-system-audio --no-record -t 8 -o "$OUT/none.mov" $args >/dev/null 2>"$OUT/$name.log" || true
       sleep 2; kill "$mpid" 2>/dev/null || true; wait "$mpid" 2>/dev/null || true
       f=$(find "$M/rec" -name '*.mp4' | head -1)
       [ -n "$f" ] && cp -f "$f" "$OUT/$name.mp4" && score "$OUT/$name.mp4" "$name" || echo "$name: no stream recording (see $OUT/$name.log)"
@@ -73,7 +73,7 @@ for c in $CASES; do
       f="$OUT/$name.mov"
       rm -f "${OUT:?}/$name.mov" "${OUT:?}/$name.mov.metrics"
       # shellcheck disable=SC2086
-      "$REC" record -q --window "$WIN" --no-mic --no-system-audio -t 4 -o "$f" $args >/dev/null 2>"$OUT/$name.log" \
+      "$TAPE" record -q --window "$WIN" --no-mic --no-system-audio -t 4 -o "$f" $args >/dev/null 2>"$OUT/$name.log" \
         && score "$f" "$name" || echo "$name: recording failed (see $OUT/$name.log)"
       ;;
   esac

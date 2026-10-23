@@ -3,19 +3,19 @@
 # memory, then verify the file with ffprobe (frame count, exact CFR,
 # per-stream durations, end-of-file A/V gap) and AVFoundation.
 # Usage: scripts/soak.sh SECONDS [record args...]   (default args: 4K60 with
-# webcam, mic and system audio). Results go to ~/Movies/rec-rs-tests/soak.
+# webcam, mic and system audio). Results go to ~/Movies/tape-tests/soak.
 set -eu
 cd "$(dirname "$0")/.."
 DUR=${1:-1800}; shift || true
 [ $# -gt 0 ] || set -- -r 4k --webcam
-OUT="${REC_TEST_DIR:-$HOME/Movies/rec-rs-tests}/soak"
+OUT="${TAPE_TEST_DIR:-$HOME/Movies/tape-tests}/soak"
 mkdir -p "$OUT"
 NAME="soak-$(date +%Y%m%d-%H%M%S)"
 F="$OUT/$NAME.mov"
-REC_DEBUG=1 dist/rec-rs record -t "$DUR" -o "$F" "$@" >"$OUT/$NAME.out" 2>"$OUT/$NAME.err" &
+TAPE_DEBUG=1 dist/tape record -t "$DUR" -o "$F" "$@" >"$OUT/$NAME.out" 2>"$OUT/$NAME.err" &
 sleep 3
 # The recorder is the disclaimed child; its pid is in the pidfile.
-PID=$(head -1 "${TMPDIR:-/tmp}/rec.pid")
+PID=$(head -1 "${TMPDIR:-/tmp}/tape.pid")
 echo "recording $F (pid $PID) for ${DUR}s"
 echo "t_s cpu_pct rss_mb" >"$OUT/$NAME.samples"
 t=0
@@ -51,4 +51,4 @@ if cpu:
     print(f"cpu       : mean {sum(cpu)/n:.1f}%  max {max(cpu):.1f}%  (% of one core, {n} samples)")
     print(f"memory    : first-quarter mean {sum(rss[:q])/q:.0f} MB, last-quarter mean {sum(rss[-q:])/q:.0f} MB, max {max(rss):.0f} MB")
 PY
-dist/rec-rs probe "$F" | head -4
+dist/tape probe "$F" | head -4

@@ -171,7 +171,7 @@ impl AudioEncoder {
             AudioConverterSetProperty(conv, CODEC_QUALITY, 4, &quality as *const u32 as *const c_void);
             let st = AudioConverterSetProperty(conv, BIT_RATE, 4, &bitrate as *const u32 as *const c_void);
             if st != 0 {
-                eprintln!("rec: warning: {codec:?} bitrate {bitrate} not accepted ({st})");
+                eprintln!("tape: warning: {codec:?} bitrate {bitrate} not accepted ({st})");
             }
             let mut prime = PrimeInfo::default();
             let mut size = std::mem::size_of::<PrimeInfo>() as u32;

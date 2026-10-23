@@ -662,7 +662,7 @@ impl Sink {
         let Some(path) = self.cam_iso_path.take() else { return };
         let cam = self.cam_q.back().map(|c| c.1.0.clone()).or_else(|| self.cam_last.as_ref().map(|c| c.0.clone()));
         let Some(cam) = cam else {
-            eprintln!("rec: warning: no camera picture at the start; the camera is not saved separately");
+            eprintln!("tape: warning: no camera picture at the start; the camera is not saved separately");
             return;
         };
         let (w, h) = (CVPixelBufferGetWidth(&cam) & !1, CVPixelBufferGetHeight(&cam) & !1);
@@ -678,7 +678,7 @@ impl Sink {
                 let pip = crate::compose::PipSpec { mirror, ..Default::default() };
                 self.cam_iso = Some(CamIso { out, compositor: Compositor::new(w, h, pip), last: None });
             }
-            Err(e) => eprintln!("rec: warning: cannot save the camera separately: {e:#}"),
+            Err(e) => eprintln!("tape: warning: cannot save the camera separately: {e:#}"),
         }
     }
 
@@ -1141,8 +1141,8 @@ impl Sink {
                         self.stats.camera_file_frames += 1;
                     } else {
                         self.stats.camera_file_drops += 1;
-                        if std::env::var_os("REC_DEBUG").is_some() {
-                            eprintln!("rec: debug: camera file missed output slot {}", self.out_slot - 1);
+                        if std::env::var_os("TAPE_DEBUG").is_some() {
+                            eprintln!("tape: debug: camera file missed output slot {}", self.out_slot - 1);
                         }
                     }
                 }
@@ -1186,7 +1186,7 @@ impl Sink {
         if let Some(iso) = &self.cam_iso
             && let Err(e) = iso.finish(end_t)
         {
-            eprintln!("rec: warning: {e:#}");
+            eprintln!("tape: warning: {e:#}");
         }
         let o = self.out.as_ref().unwrap();
         unsafe {
@@ -1416,7 +1416,7 @@ mod tests {
                 ("sRGB", Some((kCVImageBufferColorPrimaries_ITU_R_709_2, kCVImageBufferTransferFunction_sRGB))),
                 ("709", Some((kCVImageBufferColorPrimaries_ITU_R_709_2, kCVImageBufferTransferFunction_ITU_R_709_2))),
             ] {
-                let path = dir.join(format!("rec-probe-{name}.mov"));
+                let path = dir.join(format!("tape-probe-{name}.mov"));
                 let _ = std::fs::remove_file(&path);
                 let spec = super::VideoSpec { width: 320, height: 64, fps: 30, codec: crate::writer::Codec::H264, bitrate: 20_000_000, pixel_format: crate::util::PIX_BGRA };
                 let o = super::open_output(&path, &spec, false, false, super::AudioLayout::Both, false).unwrap();
@@ -1464,8 +1464,8 @@ mod tests {
     #[test]
     fn camera_file_sits_next_to_the_recording() {
         use std::path::Path;
-        let p = super::camera_path(Path::new("/m/rec-2026-10-21-101500.mov"));
-        assert_eq!(p, Path::new("/m/rec-2026-10-21-101500-camera.mov"));
+        let p = super::camera_path(Path::new("/m/tape-2026-10-21-101500.mov"));
+        assert_eq!(p, Path::new("/m/tape-2026-10-21-101500-camera.mov"));
         assert_eq!(super::camera_path(Path::new("talk.mp4")), Path::new("talk-camera.mp4"));
     }
 

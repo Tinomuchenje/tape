@@ -1,7 +1,7 @@
 //! Moving the app into Applications. macOS runs a downloaded app opened where it landed (on its
 //! disk image, or in Downloads before Finder has moved it) from a random read-only folder: App
 //! Translocation. An app on a disk image is read-only too. Sparkle can't replace a copy in either
-//! place, so Rec offers to move itself into Applications and reopen from there.
+//! place, so Tape offers to move itself into Applications and reopen from there.
 
 use std::ffi::{CString, OsString, c_void};
 use std::os::unix::ffi::OsStrExt;
@@ -70,10 +70,10 @@ fn read_only(p: &Path) -> bool {
     unsafe { libc::statfs(c.as_ptr(), &mut st) == 0 && st.f_flags & libc::MNT_RDONLY as u32 != 0 }
 }
 
-/// /Applications, or ~/Applications for a user who can't write there. REC_MOVE_TO overrides it
+/// /Applications, or ~/Applications for a user who can't write there. TAPE_MOVE_TO overrides it
 /// (self-tests; see `trash`).
 fn applications_dir() -> Result<PathBuf> {
-    if let Some(d) = std::env::var_os("REC_MOVE_TO") {
+    if let Some(d) = std::env::var_os("TAPE_MOVE_TO") {
         return Ok(PathBuf::from(d));
     }
     if unsafe { libc::access(c"/Applications".as_ptr(), libc::W_OK) } == 0 {
@@ -144,9 +144,9 @@ fn strip_quarantine(p: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Into the Trash; with REC_MOVE_TO (self-tests), into a Trash folder beside that instead.
+/// Into the Trash; with TAPE_MOVE_TO (self-tests), into a Trash folder beside that instead.
 fn trash(p: &Path) -> Result<()> {
-    if let Some(d) = std::env::var_os("REC_MOVE_TO") {
+    if let Some(d) = std::env::var_os("TAPE_MOVE_TO") {
         let bin = PathBuf::from(d).with_file_name("Trash");
         std::fs::create_dir_all(&bin)?;
         let name = format!("{}-{}", std::fs::read_dir(&bin)?.count(), p.file_name().unwrap_or_default().to_string_lossy());
@@ -161,12 +161,12 @@ fn trash(p: &Path) -> Result<()> {
 /// Open `app` once this process has exited, as it was started.
 fn reopen(app: &Path) -> Result<()> {
     let mut pids = vec![std::process::id().to_string()];
-    // Started from a shell, Rec re-runs itself as a child of the copy that was started
+    // Started from a shell, Tape re-runs itself as a child of the copy that was started
     // (tcc::disclaim_and_reexec), which exits after it.
-    if std::env::var_os("REC_DISCLAIMED").is_some() {
+    if std::env::var_os("TAPE_DISCLAIMED").is_some() {
         pids.push(unsafe { libc::getppid() }.to_string());
     }
-    let background = std::env::var_os("REC_GUI_BACKGROUND").is_some();
+    let background = std::env::var_os("TAPE_GUI_BACKGROUND").is_some();
     let args = std::env::args_os().skip(1).filter(|a| !a.as_bytes().starts_with(b"-psn_")).collect();
     let open = open_args(app, std::env::vars_os(), args, background);
     let script = r#"for pid in $1; do while kill -0 "$pid" 2>/dev/null; do sleep 0.1; done; done; shift; exec /usr/bin/open "$@""#;
@@ -175,11 +175,11 @@ fn reopen(app: &Path) -> Result<()> {
 }
 
 /// `open` arguments that start a new instance of `app` (another copy of Tape may be running), with
-/// this one's command line (`gui --start-recording`, say) and REC_* settings (self-tests).
+/// this one's command line (`gui --start-recording`, say) and TAPE_* settings (self-tests).
 fn open_args(app: &Path, env: impl IntoIterator<Item = (OsString, OsString)>, args: Vec<OsString>, background: bool) -> Vec<OsString> {
     let mut open: Vec<OsString> = vec!["-n".into()];
     for (k, v) in env {
-        if k.as_bytes().starts_with(b"REC_") && k != "REC_DISCLAIMED" {
+        if k.as_bytes().starts_with(b"TAPE_") && k != "TAPE_DISCLAIMED" {
             let mut kv = k;
             kv.push("=");
             kv.push(v);
@@ -236,11 +236,11 @@ fn writable(p: &Path) -> bool {
 
 /// Offer to make the app updatable: move it into Applications, or clear the quarantine flag of
 /// the copy already there. Returns true once the app will reopen from its new place when this
-/// process exits: quit then. REC_GUI_SELFTEST=move accepts without asking.
+/// process exits: quit then. TAPE_GUI_SELFTEST=move accepts without asking.
 pub fn offer_move() -> bool {
     let Some(mtm) = MainThreadMarker::new() else { return false };
     let Some(bundle) = bundle() else { return false };
-    let selftest = std::env::var("REC_GUI_SELFTEST").as_deref() == Ok("move");
+    let selftest = std::env::var("TAPE_GUI_SELFTEST").as_deref() == Ok("move");
     let apps = match applications_dir() {
         Ok(d) => d,
         Err(e) => {
@@ -259,14 +259,14 @@ pub fn offer_move() -> bool {
             if let Some(o) = original.as_deref().filter(|o| !same(o, &dest))
                 && let Err(e) = trash(o)
             {
-                eprintln!("rec: moved, but could not put {} in the Trash: {e:#}", o.display());
+                eprintln!("tape: moved, but could not put {} in the Trash: {e:#}", o.display());
             }
             Ok(dest)
         }),
     };
     match done {
         Ok(at) => {
-            eprintln!("rec: reopening from {}", at.display());
+            eprintln!("tape: reopening from {}", at.display());
             if selftest {
                 println!("selftest: {plan:?} from={} reopen={}", bundle.display(), at.display());
             }
@@ -306,7 +306,7 @@ fn ask(mtm: MainThreadMarker, plan: &Plan, replaces: bool) -> bool {
 }
 
 fn failed(mtm: MainThreadMarker, e: &anyhow::Error, selftest: bool) {
-    eprintln!("rec: could not make Tape updatable: {e:#}");
+    eprintln!("tape: could not make Tape updatable: {e:#}");
     if selftest {
         println!("selftest: failed: {e:#}");
         return;
@@ -349,24 +349,24 @@ mod tests {
         assert_eq!(r, 0, "{}", std::io::Error::last_os_error());
     }
 
-    /// A small bundle like Rec's: a binary, a framework with a symlinked version, quarantined
+    /// A small bundle like Tape's: a binary, a framework with a symlinked version, quarantined
     /// throughout as a browser leaves a download.
     fn fake_bundle(dir: &Path, version: &str) -> PathBuf {
-        let app = dir.join("Rec.app");
+        let app = dir.join("Tape.app");
         let fw = app.join("Contents/Frameworks/Sparkle.framework");
         std::fs::create_dir_all(app.join("Contents/MacOS")).unwrap();
         std::fs::create_dir_all(fw.join("Versions/B")).unwrap();
-        std::fs::write(app.join("Contents/MacOS/rec-rs"), version).unwrap();
+        std::fs::write(app.join("Contents/MacOS/tape"), version).unwrap();
         std::fs::write(fw.join("Versions/B/Sparkle"), "sparkle").unwrap();
         std::os::unix::fs::symlink("B", fw.join("Versions/Current")).unwrap();
-        for p in [&app, &app.join("Contents/MacOS/rec-rs"), &fw.join("Versions/B/Sparkle")] {
+        for p in [&app, &app.join("Contents/MacOS/tape"), &fw.join("Versions/B/Sparkle")] {
             quarantine(p);
         }
         app
     }
 
     fn temp_dir(name: &str) -> PathBuf {
-        let d = std::env::temp_dir().join(format!("rec-install-{name}-{}", std::process::id()));
+        let d = std::env::temp_dir().join(format!("tape-install-{name}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&d);
         std::fs::create_dir_all(&d).unwrap();
         d
@@ -380,11 +380,11 @@ mod tests {
         std::fs::create_dir_all(&apps).unwrap();
         let app = fake_bundle(&src, "new");
         let dest = install(&app, &apps, |_| panic!("nothing to replace")).unwrap();
-        assert_eq!(dest, apps.join("Rec.app"));
-        assert_eq!(std::fs::read_to_string(dest.join("Contents/MacOS/rec-rs")).unwrap(), "new");
+        assert_eq!(dest, apps.join("Tape.app"));
+        assert_eq!(std::fs::read_to_string(dest.join("Contents/MacOS/tape")).unwrap(), "new");
         let current = dest.join("Contents/Frameworks/Sparkle.framework/Versions/Current");
         assert_eq!(std::fs::read_link(&current).unwrap(), Path::new("B"), "symlinks stay symlinks");
-        assert!(!quarantined(&dest) && !quarantined(&dest.join("Contents/MacOS/rec-rs")));
+        assert!(!quarantined(&dest) && !quarantined(&dest.join("Contents/MacOS/tape")));
         assert!(quarantined(&app), "the download itself is left alone");
         assert_eq!(std::fs::read_dir(&apps).unwrap().count(), 1, "no copy left behind");
         std::fs::remove_dir_all(&d).unwrap();
@@ -399,13 +399,13 @@ mod tests {
         }
         fake_bundle(&apps, "old");
         let app = fake_bundle(&src, "new");
-        let dest = install(&app, &apps, |p| Ok(std::fs::rename(p, old.join("Rec.app"))?)).unwrap();
-        assert_eq!(std::fs::read_to_string(dest.join("Contents/MacOS/rec-rs")).unwrap(), "new");
-        assert_eq!(std::fs::read_to_string(old.join("Rec.app/Contents/MacOS/rec-rs")).unwrap(), "old");
+        let dest = install(&app, &apps, |p| Ok(std::fs::rename(p, old.join("Tape.app"))?)).unwrap();
+        assert_eq!(std::fs::read_to_string(dest.join("Contents/MacOS/tape")).unwrap(), "new");
+        assert_eq!(std::fs::read_to_string(old.join("Tape.app/Contents/MacOS/tape")).unwrap(), "old");
         // If the old copy can't be taken away, it stays as it was.
         let err = install(&app, &apps, |_| bail!("in use")).unwrap_err();
         assert!(format!("{err:#}").contains("could not replace") && format!("{err:#}").contains("in use"), "{err:#}");
-        assert_eq!(std::fs::read_to_string(dest.join("Contents/MacOS/rec-rs")).unwrap(), "new");
+        assert_eq!(std::fs::read_to_string(dest.join("Contents/MacOS/tape")).unwrap(), "new");
         assert_eq!(std::fs::read_dir(&apps).unwrap().count(), 1, "no copy left behind");
         std::fs::remove_dir_all(&d).unwrap();
     }
@@ -415,9 +415,9 @@ mod tests {
         // The sealed system volume is mounted read-only.
         assert!(read_only(Path::new("/System/Library")));
         assert!(!read_only(&std::env::temp_dir()));
-        let t = "/private/var/folders/r2/x/T/AppTranslocation/0D121AD2-2488-4CED-B0B8-9B668440C0C7/d/Rec.app";
+        let t = "/private/var/folders/r2/x/T/AppTranslocation/0D121AD2-2488-4CED-B0B8-9B668440C0C7/d/Tape.app";
         assert!(is_translocated(Path::new(t)));
-        assert!(!is_translocated(Path::new("/Applications/Rec.app")));
+        assert!(!is_translocated(Path::new("/Applications/Tape.app")));
     }
 
     #[test]
@@ -426,16 +426,16 @@ mod tests {
         let ok = |_: &Path| true;
         let ro = |_: &Path| false;
         // Your case: copied into Applications, quarantined, translocated.
-        assert_eq!(plan(Some(Path::new("/Applications/Rec.app")), apps, ok), Plan::Clear("/Applications/Rec.app".into()));
+        assert_eq!(plan(Some(Path::new("/Applications/Tape.app")), apps, ok), Plan::Clear("/Applications/Tape.app".into()));
         let home = PathBuf::from(std::env::var_os("HOME").unwrap());
-        let user_apps = home.join("Applications/Rec.app");
+        let user_apps = home.join("Applications/Tape.app");
         assert_eq!(plan(Some(&user_apps), apps, ok), Plan::Clear(user_apps.clone()));
         // Opened in Downloads: move, and the download goes to the Trash.
-        let dl = home.join("Downloads/Rec.app");
+        let dl = home.join("Downloads/Tape.app");
         assert_eq!(plan(Some(&dl), apps, ok), Plan::Move { apps: apps.into(), trash: Some(dl.clone()) });
-        // Opened on the disk image, or a copy Rec can't change: move, nothing to trash.
-        assert_eq!(plan(Some(Path::new("/Volumes/Rec/Rec.app")), apps, ro), Plan::Move { apps: apps.into(), trash: None });
-        assert_eq!(plan(Some(Path::new("/Applications/Rec.app")), apps, ro), Plan::Move { apps: apps.into(), trash: None });
+        // Opened on the disk image, or a copy Tape can't change: move, nothing to trash.
+        assert_eq!(plan(Some(Path::new("/Volumes/Tape/Tape.app")), apps, ro), Plan::Move { apps: apps.into(), trash: None });
+        assert_eq!(plan(Some(Path::new("/Applications/Tape.app")), apps, ro), Plan::Move { apps: apps.into(), trash: None });
         // Not translocated (a disk image without the quarantine flag), or the original unknown.
         assert_eq!(plan(None, apps, ok), Plan::Move { apps: apps.into(), trash: None });
     }
@@ -446,9 +446,9 @@ mod tests {
         // how the Applications folder is spelled (/tmp/...). The copy must be cleared in place,
         // never moved onto itself and then trashed.
         let d = temp_dir("symlink");
-        std::fs::create_dir_all(d.join("real/Applications/Rec.app")).unwrap();
+        std::fs::create_dir_all(d.join("real/Applications/Tape.app")).unwrap();
         std::os::unix::fs::symlink(d.join("real"), d.join("link")).unwrap();
-        let original = std::fs::canonicalize(d.join("real/Applications/Rec.app")).unwrap();
+        let original = std::fs::canonicalize(d.join("real/Applications/Tape.app")).unwrap();
         let apps = d.join("link/Applications");
         assert_eq!(plan(Some(&original), &apps, |_| true), Plan::Clear(original.clone()));
         std::fs::remove_dir_all(&d).unwrap();
@@ -464,18 +464,18 @@ mod tests {
         std::fs::create_dir_all(&apps).unwrap();
         fake_bundle(&apps, "old");
         let app = fake_bundle(&src, "new");
-        let dest = apps.join("Rec.app");
+        let dest = apps.join("Tape.app");
         let seen = std::cell::RefCell::new(vec![]);
         install(&app, &apps, |old| {
             seen.borrow_mut().push((
-                std::fs::read_to_string(dest.join("Contents/MacOS/rec-rs")).unwrap_or_default(),
-                std::fs::read_to_string(old.join("Contents/MacOS/rec-rs")).unwrap_or_default(),
+                std::fs::read_to_string(dest.join("Contents/MacOS/tape")).unwrap_or_default(),
+                std::fs::read_to_string(old.join("Contents/MacOS/tape")).unwrap_or_default(),
                 old.file_name().unwrap().to_owned(),
             ));
             Ok(std::fs::remove_dir_all(old)?)
         })
         .unwrap();
-        assert_eq!(*seen.borrow(), [("new".to_string(), "old".to_string(), OsString::from("Rec.app"))]);
+        assert_eq!(*seen.borrow(), [("new".to_string(), "old".to_string(), OsString::from("Tape.app"))]);
         assert_eq!(std::fs::read_dir(&apps).unwrap().count(), 1, "no copy left behind");
         std::fs::remove_dir_all(&d).unwrap();
     }
@@ -485,31 +485,31 @@ mod tests {
         // Another running copy may be staging its own install in the same folder.
         let d = temp_dir("staging");
         let (src, apps) = (d.join("Downloads"), d.join("Applications"));
-        std::fs::create_dir_all(apps.join(".Rec.app.moving/Contents")).unwrap();
+        std::fs::create_dir_all(apps.join(".Tape.app.moving/Contents")).unwrap();
         std::fs::create_dir_all(&src).unwrap();
         let app = fake_bundle(&src, "new");
         install(&app, &apps, |_| panic!("nothing to replace")).unwrap();
-        assert!(apps.join(".Rec.app.moving/Contents").is_dir(), "another copy's staging is left alone");
+        assert!(apps.join(".Tape.app.moving/Contents").is_dir(), "another copy's staging is left alone");
         std::fs::remove_dir_all(&d).unwrap();
     }
 
     #[test]
     fn reopens_a_new_instance_with_the_same_options() {
-        let env = [("REC_SETTINGS", "/tmp/s.json"), ("REC_DISCLAIMED", "1"), ("HOME", "/Users/x")];
+        let env = [("TAPE_SETTINGS", "/tmp/s.json"), ("TAPE_DISCLAIMED", "1"), ("HOME", "/Users/x")];
         let args = ["gui", "--start-recording"];
-        let a = open_args(Path::new("/Applications/Rec.app"), env.map(|(k, v)| (k.into(), v.into())), args.map(Into::into).to_vec(), false);
+        let a = open_args(Path::new("/Applications/Tape.app"), env.map(|(k, v)| (k.into(), v.into())), args.map(Into::into).to_vec(), false);
         let a: Vec<String> = a.iter().map(|s| s.to_string_lossy().into_owned()).collect();
-        assert_eq!(a, ["-n", "--env", "REC_SETTINGS=/tmp/s.json", "/Applications/Rec.app", "--args", "gui", "--start-recording"]);
-        let a = open_args(Path::new("/A/Rec.app"), vec![], vec![], true);
-        assert_eq!(a, ["-n", "-g", "/A/Rec.app"].map(OsString::from));
+        assert_eq!(a, ["-n", "--env", "TAPE_SETTINGS=/tmp/s.json", "/Applications/Tape.app", "--args", "gui", "--start-recording"]);
+        let a = open_args(Path::new("/A/Tape.app"), vec![], vec![], true);
+        assert_eq!(a, ["-n", "-g", "/A/Tape.app"].map(OsString::from));
     }
 
-    /// Run against a real translocated copy: REC_TRANSLOCATED=<its bundle path> cargo test --
+    /// Run against a real translocated copy: TAPE_TRANSLOCATED=<its bundle path> cargo test --
     /// --ignored original_of_a_translocated_app
     #[test]
     #[ignore]
     fn original_of_a_translocated_app() {
-        let p = PathBuf::from(std::env::var("REC_TRANSLOCATED").expect("REC_TRANSLOCATED"));
+        let p = PathBuf::from(std::env::var("TAPE_TRANSLOCATED").expect("TAPE_TRANSLOCATED"));
         assert!(is_translocated(&p));
         let o = original_path(&p).expect("original path");
         println!("{} is really {} (read-only: {})", p.display(), o.display(), read_only(&o));

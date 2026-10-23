@@ -7,7 +7,7 @@
 //! already favors quality), BT.709 limited-range tags in the bitstream, and
 //! HEVC Main10: from the same 8-bit frames it scored +1.4 dB PSNR-Y and +1.4
 //! VMAF over Main on 4K60 motion at 35 Mb/s (scripts/encquality.sh).
-//! `REC_LIVE_BASIC=1` restores the plain settings for A/B measurements.
+//! `TAPE_LIVE_BASIC=1` restores the plain settings for A/B measurements.
 
 use std::ffi::c_void;
 use std::ptr::NonNull;
@@ -148,7 +148,7 @@ impl VideoEncoder {
         unsafe {
             set(&session, kVTCompressionPropertyKey_RealTime, &(num_b(true)));
             set(&session, kVTCompressionPropertyKey_AllowFrameReordering, &(num_b(false)));
-            let basic = std::env::var_os("REC_LIVE_BASIC").is_some();
+            let basic = std::env::var_os("TAPE_LIVE_BASIC").is_some();
             let profile = match (cfg.hevc, basic) {
                 (false, _) => kVTProfileLevel_H264_High_AutoLevel,
                 (true, true) => kVTProfileLevel_HEVC_Main_AutoLevel,
@@ -362,18 +362,18 @@ mod tests {
     }
 
     /// Encoder quality harness (scripts/encquality.sh): encodes the raw
-    /// BGRA frames of REC_ENC_SRC (a lossless file, decoded by ffmpeg) with
-    /// REC_ENC_BITRATE (b/s), REC_ENC_HEVC=1, REC_ENC_FPS and writes an
-    /// Annex B stream to REC_ENC_OUT.
+    /// BGRA frames of TAPE_ENC_SRC (a lossless file, decoded by ffmpeg) with
+    /// TAPE_ENC_BITRATE (b/s), TAPE_ENC_HEVC=1, TAPE_ENC_FPS and writes an
+    /// Annex B stream to TAPE_ENC_OUT.
     #[test]
     #[ignore]
     fn encode_file() {
         use std::io::{Read, Write};
-        let src = std::env::var("REC_ENC_SRC").expect("REC_ENC_SRC");
-        let out = std::env::var("REC_ENC_OUT").expect("REC_ENC_OUT");
-        let bitrate: u64 = std::env::var("REC_ENC_BITRATE").unwrap().parse().unwrap();
-        let hevc = std::env::var("REC_ENC_HEVC").is_ok_and(|v| v == "1");
-        let fps: u32 = std::env::var("REC_ENC_FPS").map_or(60, |v| v.parse().unwrap());
+        let src = std::env::var("TAPE_ENC_SRC").expect("TAPE_ENC_SRC");
+        let out = std::env::var("TAPE_ENC_OUT").expect("TAPE_ENC_OUT");
+        let bitrate: u64 = std::env::var("TAPE_ENC_BITRATE").unwrap().parse().unwrap();
+        let hevc = std::env::var("TAPE_ENC_HEVC").is_ok_and(|v| v == "1");
+        let fps: u32 = std::env::var("TAPE_ENC_FPS").map_or(60, |v| v.parse().unwrap());
         let (w, h) = (3840usize, 2160usize);
         let mut ff = std::process::Command::new("ffmpeg")
             .args(["-v", "error", "-i", &src, "-f", "rawvideo", "-pix_fmt", "bgra", "-"])

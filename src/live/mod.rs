@@ -317,7 +317,7 @@ impl Live {
                 }
                 Some(Ok(_)) => e.creating = false, // settings changed meanwhile
                 Some(Err(err)) => {
-                    eprintln!("rec: live video encoder: {err:#}");
+                    eprintln!("tape: live video encoder: {err:#}");
                     e.creating = false;
                     return;
                 }
@@ -425,7 +425,7 @@ impl Live {
             if e.aac.is_none() {
                 match AudioEncoder::new(AudioCodec::Aac, cfg.audio_bitrate) {
                     Ok(a) => e.aac = Some(a),
-                    Err(err) => eprintln!("rec: live audio encoder: {err:#}"),
+                    Err(err) => eprintln!("tape: live audio encoder: {err:#}"),
                 }
             }
             if let Some(a) = e.aac.as_mut() {
@@ -652,15 +652,15 @@ pub fn shared_preset(platforms: &[Platform], height: usize, fps: u32, codec: &st
         .unwrap_or_else(|| preset(Platform::Other, height, fps, hevc))
 }
 
-/// (URL, key) for a destination: the key comes from $REC_STREAM_KEY or the
+/// (URL, key) for a destination: the key comes from $TAPE_STREAM_KEY or the
 /// Keychain. WHIP endpoints may have no key.
 pub fn resolve_destination(dest: &str) -> Result<(String, String)> {
     let url = destination_url(dest);
-    let key = std::env::var("REC_STREAM_KEY").ok().filter(|k| !k.is_empty()).or_else(|| keychain::get(&url));
+    let key = std::env::var("TAPE_STREAM_KEY").ok().filter(|k| !k.is_empty()).or_else(|| keychain::get(&url));
     match key {
         Some(k) => Ok((url, k)),
         None if url.starts_with("http") => Ok((url, String::new())),
-        None => anyhow::bail!("no stream key for {url}: set REC_STREAM_KEY or run `rec-rs stream-key {dest}`"),
+        None => anyhow::bail!("no stream key for {url}: set TAPE_STREAM_KEY or run `tape stream-key {dest}`"),
     }
 }
 
@@ -889,7 +889,7 @@ mod tests {
         let (held, bytes) = live.replay_stats().unwrap();
         assert!((15.0..17.0).contains(&held), "held {held}");
         assert!(bytes > 100_000);
-        let dir = std::env::temp_dir().join(format!("rec-replay-test-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("tape-replay-test-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("replay.mp4");
         let saved = live.save_replay(path.clone()).unwrap().join().unwrap().unwrap();
@@ -899,7 +899,7 @@ mod tests {
             .output()
             .unwrap();
         let text = String::from_utf8_lossy(&out.stdout).to_string();
-        if std::env::var_os("REC_KEEP_REPLAY_TEST").is_some() {
+        if std::env::var_os("TAPE_KEEP_REPLAY_TEST").is_some() {
             std::fs::copy(&saved, "/tmp/rec_replay_test.mp4").unwrap();
         }
         let _ = std::fs::remove_dir_all(&dir);

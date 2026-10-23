@@ -1,5 +1,7 @@
 # PROGRESS
 
+*Development log from Rec, before Tape forked from it. Commands and paths here use Rec's old names (`rec`, `rec-rs`).*
+
 ## Your fix list (2026-10-12 evening): done
 
 Every item was measured on real recordings in `~/Movies/rec-rs-tests/goal/` (camera clips

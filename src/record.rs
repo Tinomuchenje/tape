@@ -39,10 +39,10 @@ impl Shared {
 
 /// Set by SIGINT/SIGTERM/SIGHUP in CLI mode.
 static STOP: AtomicBool = AtomicBool::new(false);
-/// Pause/resume requests (SIGUSR1/SIGUSR2 from `rec-rs pause`/`resume`).
+/// Pause/resume requests (SIGUSR1/SIGUSR2 from `tape pause`/`resume`).
 pub static PAUSE_REQ: AtomicBool = AtomicBool::new(false);
 pub static RESUME_REQ: AtomicBool = AtomicBool::new(false);
-/// Save-replay request (SIGINFO from `rec-rs save-replay`).
+/// Save-replay request (SIGINFO from `tape save-replay`).
 pub static REPLAY_REQ: AtomicBool = AtomicBool::new(false);
 
 extern "C" fn on_info_signal(_: libc::c_int) {
@@ -138,7 +138,7 @@ impl std::fmt::Display for MissingPermissions {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "missing permission(s): {}\n  run `rec permissions --request`, then enable Tape in System Settings > Privacy & Security",
+            "missing permission(s): {}\n  run `tape permissions --request`, then enable Tape in System Settings > Privacy & Security",
             self.0.join(", ")
         )
     }
@@ -186,11 +186,11 @@ const CAMERA_SETTLE_SECS: f64 = 2.0;
 
 /// Size ScreenCaptureKit delivers: the native size when it is larger than
 /// the output (scaled down here with a high-quality filter), else the output
-/// size. `REC_SCALER=sck` keeps ScreenCaptureKit's own scaling.
+/// size. `TAPE_SCALER=sck` keeps ScreenCaptureKit's own scaling.
 fn capture_size(o: &Options) -> (usize, usize) {
     let (w, h) = o.size;
     let (nw, nh) = o.native;
-    let sck = std::env::var("REC_SCALER").as_deref() == Ok("sck");
+    let sck = std::env::var("TAPE_SCALER").as_deref() == Ok("sck");
     if o.test_pattern.is_none() && !sck && nw * nh > w * h { (nw, nh) } else { (w, h) }
 }
 
@@ -249,8 +249,8 @@ impl Session {
             (None, Some(_)) => 0.0,
             (None, None) => crate::outlatency::output_latency().unwrap_or(0.0) * 1000.0,
         };
-        if std::env::var_os("REC_DEBUG").is_some() {
-            eprintln!("rec: debug: audio offsets: system {sys_ms:+.1} ms, mic {:+.1} ms", o.mic_offset_ms);
+        if std::env::var_os("TAPE_DEBUG").is_some() {
+            eprintln!("tape: debug: audio offsets: system {sys_ms:+.1} ms, mic {:+.1} ms", o.mic_offset_ms);
         }
         sink.set_audio_offsets([sys_ms / 1000.0, o.mic_offset_ms / 1000.0]);
         if let Some(l) = &o.live {
@@ -499,16 +499,16 @@ impl Session {
             None => bail!("internal: sink missing"),
         };
         if let Some(e) = self.shared.error.lock().unwrap().take() {
-            eprintln!("rec: error during recording: {e}");
+            eprintln!("tape: error during recording: {e}");
         }
         if let Some(e) = stop_err {
-            eprintln!("rec: warning: stopping screen capture: {e}");
+            eprintln!("tape: warning: stopping screen capture: {e}");
         }
         result
     }
 }
 
-/// CLI recording: run until Ctrl-C/SIGTERM, `rec stop`, duration, or error.
+/// CLI recording: run until Ctrl-C/SIGTERM, `tape stop`, duration, or error.
 pub fn run(o: Options, target: Option<screen::Target>) -> Result<Stats> {
     unsafe {
         libc::signal(libc::SIGINT, on_signal as *const () as usize);
@@ -546,7 +546,7 @@ pub fn run(o: Options, target: Option<screen::Target>) -> Result<Stats> {
     let (w, h) = o.size;
     if !o.quiet {
         eprintln!(
-            "rec: {} {} -> {} ({}x{} @ {}fps {:?}{}, system audio {}, mic {}, webcam {})",
+            "tape: {} {} -> {} ({}x{} @ {}fps {:?}{}, system audio {}, mic {}, webcam {})",
             if o.write { "recording" } else { "capturing" },
             sess.description,
             if o.write { o.output.display().to_string() } else { "no file".into() },
@@ -559,7 +559,7 @@ pub fn run(o: Options, target: Option<screen::Target>) -> Result<Stats> {
             mic_desc,
             sess.camera_name().unwrap_or("off"),
         );
-        eprintln!("rec: press Ctrl-C to stop");
+        eprintln!("tape: press Ctrl-C to stop");
     }
 
 
@@ -570,7 +570,7 @@ pub fn run(o: Options, target: Option<screen::Target>) -> Result<Stats> {
     while !STOP.load(Ordering::SeqCst) && !sess.failed() {
         std::thread::sleep(Duration::from_millis(20));
         // On macOS 27 the camera stack takes SIGUSR1, SIGUSR2 and SIGINFO
-        // over once a camera starts, which silently broke `rec-rs pause`,
+        // over once a camera starts, which silently broke `tape pause`,
         // `resume` and `save-replay`. Taking them back each second is enough.
         if last_signals.elapsed() >= Duration::from_secs(1) {
             last_signals = Instant::now();
@@ -578,7 +578,7 @@ pub fn run(o: Options, target: Option<screen::Target>) -> Result<Stats> {
         }
         // Requests wait for the first frame (the timeline starts there).
         if sess.has_frames() && PAUSE_REQ.swap(false, Ordering::SeqCst) && sess.pause() && !o.quiet {
-            eprint!("\r\x1b[2Krec: paused (`rec-rs resume` to continue)\n");
+            eprint!("\r\x1b[2Krec: paused (`tape resume` to continue)\n");
         }
         if sess.has_frames() && RESUME_REQ.swap(false, Ordering::SeqCst) && sess.resume() && !o.quiet {
             eprint!("\r\x1b[2Krec: resumed\n");
@@ -614,7 +614,7 @@ pub fn run(o: Options, target: Option<screen::Target>) -> Result<Stats> {
         }
         if !warned_no_frames && el > 3.0 && !sess.has_frames() {
             warned_no_frames = true;
-            eprintln!("rec: warning: no screen frames after 3s (is Screen Recording permission granted?)");
+            eprintln!("tape: warning: no screen frames after 3s (is Screen Recording permission granted?)");
         }
         if !o.quiet && last_status.elapsed() >= Duration::from_secs(1) {
             last_status = Instant::now();
@@ -656,8 +656,8 @@ pub fn run(o: Options, target: Option<screen::Target>) -> Result<Stats> {
     }
     for h in saves {
         match h.join() {
-            Ok(Ok(p)) => eprintln!("rec: replay saved {}", p.display()),
-            Ok(Err(e)) => eprintln!("rec: replay: {e:#}"),
+            Ok(Ok(p)) => eprintln!("tape: replay saved {}", p.display()),
+            Ok(Err(e)) => eprintln!("tape: replay: {e:#}"),
             Err(_) => {}
         }
     }
@@ -675,7 +675,7 @@ pub fn db(p: f32) -> String {
 }
 
 pub fn pidfile_path() -> PathBuf {
-    std::env::temp_dir().join("rec.pid")
+    std::env::temp_dir().join("tape.pid")
 }
 
 /// Send `sig` to the running recorder (SIGUSR1 pause, SIGUSR2 resume,
@@ -689,7 +689,7 @@ pub fn signal_running(sig: libc::c_int) -> Result<()> {
     Ok(())
 }
 
-/// Ask a running `rec record` to stop (like Ctrl-C) and wait for it to finish.
+/// Ask a running `tape record` to stop (like Ctrl-C) and wait for it to finish.
 pub fn stop_running() -> Result<()> {
     let path = pidfile_path();
     let text = std::fs::read_to_string(&path).map_err(|_| anyhow::anyhow!("no recording in progress"))?;

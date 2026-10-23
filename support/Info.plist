@@ -5,11 +5,11 @@
 	<key>CFBundleDisplayName</key>
 	<string>Tape</string>
 	<key>CFBundleExecutable</key>
-	<string>rec-rs</string>
+	<string>tape</string>
 	<key>CFBundleIconFile</key>
 	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.tinomuchenje.rec</string>
+	<string>com.tinomuchenje.tape</string>
 	<key>CFBundleName</key>
 	<string>Tape</string>
 	<key>CFBundlePackageType</key>
@@ -20,7 +20,7 @@
 	<key>CFBundleVersion</key>
 	<string>0.1.2</string>
 	<key>NSHumanReadableCopyright</key>
-	<string>Copyright © 2026 Michael Shimeles</string>
+	<string>Copyright © 2026 Tinomuchenje. Based on Rec, copyright © 2026 Michael Shimeles.</string>
 	<key>LSAppNapIsDisabled</key>
 	<true/>
 	<key>LSMinimumSystemVersion</key>
@@ -39,7 +39,7 @@
 	     only updates signed with the private half of this key, which `generate_keys --account tape`
 	     keeps in the release Mac's login keychain. Every release must be signed with the same key. -->
 	<key>SUFeedURL</key>
-	<string>https://github.com/Tinomuchenje/rec-rs/releases/latest/download/appcast.xml</string>
+	<string>https://github.com/Tinomuchenje/tape/releases/latest/download/appcast.xml</string>
 	<key>SUPublicEDKey</key>
 	<string>Wyqo29EHXTk84WghwoER1N8Xdtqv/+DvhkzY892BEZU=</string>
 	<key>SURequireSignedFeed</key>

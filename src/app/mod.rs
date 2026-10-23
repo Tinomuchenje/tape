@@ -60,10 +60,10 @@ static PROXY: OnceLock<Mutex<EventLoopProxy<()>>> = OnceLock::new();
 /// A capture device was plugged in or removed.
 static DEVICES_CHANGED: AtomicBool = AtomicBool::new(false);
 
-/// REC_GUI_BACKGROUND: open windows without taking focus from the app in
+/// TAPE_GUI_BACKGROUND: open windows without taking focus from the app in
 /// use (scripted runs and screenshots while someone works).
 fn background() -> bool {
-    std::env::var_os("REC_GUI_BACKGROUND").is_some()
+    std::env::var_os("TAPE_GUI_BACKGROUND").is_some()
 }
 
 /// Wake the event loop (from any thread).
@@ -78,8 +78,8 @@ pub fn push(c: Cmd) {
     wake();
 }
 
-/// SIGINT (`rec-rs stop`) stops the recording; SIGTERM/SIGHUP quit after
-/// saving it. SIGUSR1/2 (`rec-rs pause`/`resume`) use record's flags.
+/// SIGINT (`tape stop`) stops the recording; SIGTERM/SIGHUP quit after
+/// saving it. SIGUSR1/2 (`tape pause`/`resume`) use record's flags.
 static SIG_STOP: AtomicBool = AtomicBool::new(false);
 static SIG_QUIT: AtomicBool = AtomicBool::new(false);
 extern "C" fn on_sigint(_: libc::c_int) {
@@ -333,7 +333,7 @@ fn load_devices(st: &mut State) {
 
 /// The banner for a preview that didn't start, and whether it failed for
 /// missing privacy grants, which shows the Request Permissions button. The
-/// CLI's wording names a `rec` command, and installing the app doesn't put one
+/// CLI's wording names a `tape` command, and installing the app doesn't put one
 /// on the PATH.
 fn preview_error(e: &anyhow::Error) -> (String, bool) {
     match e.downcast_ref::<record::MissingPermissions>() {
@@ -409,7 +409,7 @@ impl App {
             start_recording,
             launched: Instant::now(),
             menu_shown: false,
-            selftest: std::env::var_os("REC_GUI_SELFTEST").map(|_| SelfTest::default()),
+            selftest: std::env::var_os("TAPE_GUI_SELFTEST").map(|_| SelfTest::default()),
             finished: Arc::new(Mutex::new(None)),
         }
     }
@@ -423,7 +423,7 @@ impl App {
             }))
             .expect("no compatible GPU adapter");
             let (device, queue) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
-                label: Some("rec-rs"),
+                label: Some("tape"),
                 required_limits: wgpu::Limits::downlevel_defaults().using_resolution(adapter.limits()),
                 ..Default::default()
             }))
@@ -456,7 +456,7 @@ impl App {
                 }))
                 .expect("no compatible GPU adapter");
                 let (device, queue) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
-                    label: Some("rec-rs"),
+                    label: Some("tape"),
                     required_limits: wgpu::Limits::downlevel_defaults().using_resolution(adapter.limits()),
                     ..Default::default()
                 }))
@@ -503,13 +503,13 @@ impl App {
 
     fn show_main(&mut self, el: &ActiveEventLoop) {
         if self.main.is_none() {
-            // REC_MAIN_SIZE=WxH or full: open at this size or fullscreen (layout checks).
-            let size = std::env::var("REC_MAIN_SIZE")
+            // TAPE_MAIN_SIZE=WxH or full: open at this size or fullscreen (layout checks).
+            let size = std::env::var("TAPE_MAIN_SIZE")
                 .ok()
                 .and_then(|v| v.split_once('x').and_then(|(w, h)| Some((w.parse().ok()?, h.parse().ok()?))))
                 .unwrap_or((1040.0, 660.0));
             let w = self.open_window(el, "Tape", size, (860.0, 560.0));
-            if std::env::var("REC_MAIN_SIZE").as_deref() == Ok("full") {
+            if std::env::var("TAPE_MAIN_SIZE").as_deref() == Ok("full") {
                 w.window.set_fullscreen(Some(winit::window::Fullscreen::Borderless(None)));
             }
             self.main = Some(w);
@@ -562,12 +562,12 @@ impl App {
         if count > 0 && settings.window.is_none() && settings.display > count {
             warning = Some(format!("Display {} not connected; using display 1", settings.display));
             settings.display = 1;
-            eprintln!("rec: warning: {}", warning.as_deref().unwrap_or_default());
+            eprintln!("tape: warning: {}", warning.as_deref().unwrap_or_default());
         }
         let mut args = settings.record_args(output);
-        // REC_TEST_PATTERN: the CLI's synthetic source, for self-tests that
+        // TAPE_TEST_PATTERN: the CLI's synthetic source, for self-tests that
         // need no privacy grants.
-        if std::env::var_os("REC_TEST_PATTERN").is_some() {
+        if std::env::var_os("TAPE_TEST_PATTERN").is_some() {
             args.push("--test-pattern".into());
         }
         let refs: Vec<&str> = args.iter().map(String::as_str).collect();
@@ -627,7 +627,7 @@ impl App {
                     push(Cmd::SaveReplay)
                 });
                 if let Err(code) = ok {
-                    eprintln!("rec: could not register ⇧⌘S (error {code}); use the Save Replay button");
+                    eprintln!("tape: could not register ⇧⌘S (error {code}); use the Save Replay button");
                 }
                 self.st.replay_hotkey = Some(ok.is_ok());
             }
@@ -767,7 +767,7 @@ impl App {
                 record::RESUME_REQ.store(false, Ordering::SeqCst);
             }
             Err(e) => {
-                eprintln!("rec: could not start recording: {e:#}");
+                eprintln!("tape: could not start recording: {e:#}");
                 self.st.error = Some(format!("Could not start recording: {e:#}"));
                 self.sync_preview();
             }
@@ -853,9 +853,9 @@ impl App {
     /// Periodic work: commands, signals, finished recordings, failures,
     /// menu bar, meters.
     fn tick(&mut self, el: &ActiveEventLoop) {
-        // REC_SHOW_MENU: open the menu bar menu once, 3 s after launch
+        // TAPE_SHOW_MENU: open the menu bar menu once, 3 s after launch
         // (for screenshots). It tracks modally until dismissed.
-        if !self.menu_shown && std::env::var_os("REC_SHOW_MENU").is_some() && self.launched.elapsed() > Duration::from_secs(3) {
+        if !self.menu_shown && std::env::var_os("TAPE_SHOW_MENU").is_some() && self.launched.elapsed() > Duration::from_secs(3) {
             self.menu_shown = true;
             if let Some(m) = &self.menubar {
                 m.pop_up();
@@ -880,7 +880,7 @@ impl App {
                 self.st.recording.as_ref().unwrap().resume();
             }
         }
-        // `rec-rs save-replay` (SIGINFO).
+        // `tape save-replay` (SIGINFO).
         if record::REPLAY_REQ.swap(false, Ordering::SeqCst) {
             push(Cmd::SaveReplay);
         }
@@ -895,7 +895,7 @@ impl App {
         for h in finished {
             match h.join() {
                 Ok(Ok(p)) => {
-                    eprintln!("rec: replay saved {}", p.display());
+                    eprintln!("tape: replay saved {}", p.display());
                     self.st.notice = Some((format!("Replay saved: {}", p.file_name().unwrap_or_default().to_string_lossy()), Instant::now()));
                     self.st.last_file = Some(p);
                 }
@@ -1075,14 +1075,14 @@ impl ApplicationHandler for App {
             push(Cmd::ToggleRecording)
         });
         if let Err(code) = ok {
-            eprintln!("rec: could not register ⇧⌘R (error {code}); use the menu or the window instead");
+            eprintln!("tape: could not register ⇧⌘R (error {code}); use the menu or the window instead");
             mb.hotkey_unavailable();
             self.st.hotkey_ok = false;
         }
         self.menubar = Some(mb);
         self._main_menu = Some(menubar::install_main_menu(mtm));
         macos::set_dock_icon();
-        if std::env::var_os("REC_GUI_HIDDEN").is_some() {
+        if std::env::var_os("TAPE_GUI_HIDDEN").is_some() {
             self.main_visible = false;
         } else {
             self.show_main(el);
@@ -1093,7 +1093,7 @@ impl ApplicationHandler for App {
         if self.selftest.is_none() {
             push(Cmd::StartUpdater);
         }
-        eprintln!("rec: app running (⇧⌘R toggles recording)");
+        eprintln!("tape: app running (⇧⌘R toggles recording)");
     }
 
     fn user_event(&mut self, el: &ActiveEventLoop, _: ()) {
@@ -1201,7 +1201,7 @@ impl ApplicationHandler for App {
     }
 }
 
-/// REC_GUI_SELFTEST=1: drive the real app paths on a timer (preview,
+/// TAPE_GUI_SELFTEST=1: drive the real app paths on a timer (preview,
 /// record via the hotkey's command, pause/resume, stop, settings window,
 /// close) and print what happened.
 #[derive(Default)]
@@ -1215,12 +1215,12 @@ struct SelfTest {
 impl SelfTest {
     fn step(&mut self, app: &mut App) {
         let t = self.t0.get_or_insert_with(Instant::now).elapsed().as_secs_f64();
-        // REC_GUI_SELFTEST=terminate: quit the way the Dock does
+        // TAPE_GUI_SELFTEST=terminate: quit the way the Dock does
         // (-[NSApp terminate:]) mid-recording; the file must be finalized.
-        // REC_GUI_SELFTEST=move: a copy started from a read-only volume moves itself to
-        // REC_MOVE_TO and reopens from there (install::offer_move). The reopened copy says
+        // TAPE_GUI_SELFTEST=move: a copy started from a read-only volume moves itself to
+        // TAPE_MOVE_TO and reopens from there (install::offer_move). The reopened copy says
         // where it runs, in relaunched.txt in the output folder, and quits.
-        if std::env::var("REC_GUI_SELFTEST").as_deref() == Ok("move") {
+        if std::env::var("TAPE_GUI_SELFTEST").as_deref() == Ok("move") {
             if self.step == 0 && t > 1.0 {
                 let exe = std::env::current_exe().map(|p| p.display().to_string()).unwrap_or_default();
                 let args: Vec<String> = std::env::args().skip(1).collect();
@@ -1231,7 +1231,7 @@ impl SelfTest {
             }
             return;
         }
-        if std::env::var("REC_GUI_SELFTEST").as_deref() == Ok("terminate") {
+        if std::env::var("TAPE_GUI_SELFTEST").as_deref() == Ok("terminate") {
             match self.step {
                 0 if t > 2.0 => {
                     push(Cmd::ToggleRecording);
@@ -1247,10 +1247,10 @@ impl SelfTest {
             }
             return;
         }
-        // REC_GUI_SELFTEST=live: replay buffer and a stream to every enabled
+        // TAPE_GUI_SELFTEST=live: replay buffer and a stream to every enabled
         // destination keep running across window close and a recording;
         // then the replay is saved with the hotkey's command.
-        if std::env::var("REC_GUI_SELFTEST").as_deref() == Ok("live") {
+        if std::env::var("TAPE_GUI_SELFTEST").as_deref() == Ok("live") {
             let streaming = !app.st.settings.stream_urls().is_empty();
             let live = app.st.streams.iter().filter(|s| s.status.as_ref().is_some_and(|s| s.live)).count();
             match self.step {
@@ -1304,11 +1304,11 @@ impl SelfTest {
             }
             return;
         }
-        // REC_GUI_SELFTEST=levels (with REC_TEST_PATTERN, whose beeps are the
+        // TAPE_GUI_SELFTEST=levels (with TAPE_TEST_PATTERN, whose beeps are the
         // system audio): move the system fader while recording, from 0 dB to
         // -12 dB, muted, then 0 dB again, and save the replay buffer.
         // scripts/levelcheck.py checks that both files follow the fader.
-        if std::env::var("REC_GUI_SELFTEST").as_deref() == Ok("levels") {
+        if std::env::var("TAPE_GUI_SELFTEST").as_deref() == Ok("levels") {
             let s = &mut app.st.settings;
             let mut set = |db: f32, muted: bool| {
                 (s.system_gain_db, s.system_muted) = (db, muted);
@@ -1443,8 +1443,8 @@ mod tests {
     #[test]
     fn missing_permissions_banner_points_at_its_button() {
         let e = anyhow::Error::from(record::MissingPermissions(vec!["Screen & System Audio Recording", "Microphone"]));
-        // The CLI keeps telling people to run `rec permissions --request`.
-        assert!(format!("{e:#}").contains("run `rec permissions --request`"));
+        // The CLI keeps telling people to run `tape permissions --request`.
+        assert!(format!("{e:#}").contains("run `tape permissions --request`"));
         let (msg, missing) = preview_error(&e);
         assert!(missing);
         assert_eq!(

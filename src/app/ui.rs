@@ -246,11 +246,11 @@ fn preview(ui: &mut Ui, st: &mut State) {
             egui::pos2((rect.min.x * ppp).round() / ppp, (rect.min.y * ppp).round() / ppp),
             rect.size(),
         );
-        // REC_DEBUG_PREVIEW: where the preview is, in window pixels (for
+        // TAPE_DEBUG_PREVIEW: where the preview is, in window pixels (for
         // comparing it against a screenshot of the screen).
-        if std::env::var_os("REC_DEBUG_PREVIEW").is_some() {
+        if std::env::var_os("TAPE_DEBUG_PREVIEW").is_some() {
             eprintln!(
-                "rec: preview rect {} {} {} {}",
+                "tape: preview rect {} {} {} {}",
                 (rect.min.x * ppp).round(),
                 (rect.min.y * ppp).round(),
                 (rect.width() * ppp).round(),

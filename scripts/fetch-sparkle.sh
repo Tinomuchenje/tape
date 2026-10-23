@@ -5,7 +5,7 @@
 # and bin/generate_keys, which it uses to sign the update and its feed.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$HOME/.cache/rec-rs-target}"
+export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$HOME/.cache/tape-target}"
 
 VERSION=2.10.0
 SHA256=c2bf58aa8387266ac179357b1415d6f2635f044da8be41042af32425dae6da0c

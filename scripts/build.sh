@@ -1,20 +1,20 @@
 #!/bin/sh
-# Build rec, assemble dist/Tape.app, and code-sign it with a stable identity so
+# Build tape, assemble dist/Tape.app, and code-sign it with a stable identity so
 # macOS privacy grants (screen/mic/camera) survive rebuilds.
 #
-# The build is "Tape Dev" (com.tinomuchenje.rec.dev), apart from the release's
-# com.tinomuchenje.rec. macOS ties each privacy grant to the certificate of the
+# The build is "Tape Dev" (com.tinomuchenje.tape.dev), apart from the release's
+# com.tinomuchenje.tape. macOS ties each privacy grant to the certificate of the
 # app that got it. A copy signed with another certificate under the same bundle
 # ID sees the grant switched on in System Settings, but it never applies.
 set -eu
 cd "$(dirname "$0")/.."
 PROFILE="${PROFILE:-release}"
-# The repo is synced between machines (Mutagen): keep build output outside it.
-export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$HOME/.cache/rec-rs-target}"
+# Keep build output outside the repo (worktrees share it).
+export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$HOME/.cache/tape-target}"
 if [ "$PROFILE" = release ]; then cargo build --release; else cargo build; fi
 APP=dist/Tape.app
 STAGE=dist/.Tape.app.new
-BUNDLE_ID=com.tinomuchenje.rec.dev
+BUNDLE_ID=com.tinomuchenje.tape.dev
 # Build the bundle beside the old one and swap it in atomically: overwriting a
 # running binary in place makes macOS kill an in-progress recording.
 rm -rf "$STAGE"
@@ -24,8 +24,8 @@ plutil -replace CFBundleIdentifier -string "$BUNDLE_ID" "$STAGE/Contents/Info.pl
 plutil -replace CFBundleName -string "Tape Dev" "$STAGE/Contents/Info.plist"
 plutil -replace CFBundleDisplayName -string "Tape Dev" "$STAGE/Contents/Info.plist"
 cp support/AppIcon.icns "$STAGE/Contents/Resources/AppIcon.icns"
-cp "$CARGO_TARGET_DIR/$PROFILE/rec-rs" "$STAGE/Contents/MacOS/rec-rs"
-IDENTITY="${REC_SIGN_IDENTITY:-$(security find-identity -v -p codesigning | awk -F'"' '/Apple Development|Developer ID Application/ {print $2; exit}')}"
+cp "$CARGO_TARGET_DIR/$PROFILE/tape" "$STAGE/Contents/MacOS/tape"
+IDENTITY="${TAPE_SIGN_IDENTITY:-$(security find-identity -v -p codesigning | awk -F'"' '/Apple Development|Developer ID Application/ {print $2; exit}')}"
 if [ -z "$IDENTITY" ]; then
   echo "warning: no signing identity found; ad-hoc signing (permissions reset on every rebuild)" >&2
   IDENTITY=-
@@ -35,8 +35,8 @@ codesign --verify --strict "$STAGE"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$STAGE/Contents/Resources/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns.new" && mv -f "$APP/Contents/Resources/AppIcon.icns.new" "$APP/Contents/Resources/AppIcon.icns"
 cp "$STAGE/Contents/Info.plist" "$APP/Contents/Info.plist.new" && mv -f "$APP/Contents/Info.plist.new" "$APP/Contents/Info.plist"
-mv -f "$STAGE/Contents/MacOS/rec-rs" "$APP/Contents/MacOS/rec-rs"
-rm -f "$APP/Contents/MacOS/rec"  # pre-rename executable
+mv -f "$STAGE/Contents/MacOS/tape" "$APP/Contents/MacOS/tape"
+rm -f "$APP/Contents/MacOS/rec" "$APP/Contents/MacOS/rec-rs"  # pre-rename executables
 rm -rf "$APP/Contents/_CodeSignature"
 mv "$STAGE/Contents/_CodeSignature" "$APP/Contents/_CodeSignature"
 rm -rf "$STAGE"
@@ -45,7 +45,7 @@ codesign --verify --strict "$APP"
 # changes (LaunchServices caches them per bundle path).
 touch "$APP"
 /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$APP" || true
-ln -sf "Tape.app/Contents/MacOS/rec-rs" dist/rec-rs
-ln -sf rec-rs dist/rec  # short alias
+rm -f dist/rec dist/rec-rs  # pre-rename links
+ln -sf "Tape.app/Contents/MacOS/tape" dist/tape
 echo "built $APP (signed: $IDENTITY)"
-echo "run:   dist/rec-rs --help"
+echo "run:   dist/tape --help"

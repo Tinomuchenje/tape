@@ -300,18 +300,18 @@ mod tests {
     }
 
     /// Preview quality harness (scripts/previewquality.sh offline): reads
-    /// one 1920x1080.. frame of REC_PV_SRC (any video; decoded to NV12 by
-    /// ffmpeg), writes the new preview pixels for REC_PV_AREA (WxH px) to
-    /// REC_PV_OUT.new.bgra and the old path's 960 px image (CoreImage
-    /// affine, before egui stretched it) to REC_PV_OUT.old.bgra.
+    /// one 1920x1080.. frame of TAPE_PV_SRC (any video; decoded to NV12 by
+    /// ffmpeg), writes the new preview pixels for TAPE_PV_AREA (WxH px) to
+    /// TAPE_PV_OUT.new.bgra and the old path's 960 px image (CoreImage
+    /// affine, before egui stretched it) to TAPE_PV_OUT.old.bgra.
     #[test]
     #[ignore]
     fn preview_pixels() {
         use std::io::Read;
         use objc2_core_foundation::{CGAffineTransform, CGPoint, CGRect, CGSize};
-        let src = std::env::var("REC_PV_SRC").unwrap();
-        let out = std::env::var("REC_PV_OUT").unwrap();
-        let (aw, ah) = std::env::var("REC_PV_AREA").unwrap().split_once('x').map(|(a, b)| (a.parse().unwrap(), b.parse().unwrap())).unwrap();
+        let src = std::env::var("TAPE_PV_SRC").unwrap();
+        let out = std::env::var("TAPE_PV_OUT").unwrap();
+        let (aw, ah) = std::env::var("TAPE_PV_AREA").unwrap().split_once('x').map(|(a, b)| (a.parse().unwrap(), b.parse().unwrap())).unwrap();
         let (w, h) = (3840usize, 2160usize);
         let mut ff = std::process::Command::new("ffmpeg")
             .args(["-v", "error", "-ss", "2", "-i", &src, "-frames:v", "1", "-vf", "scale=in_range=tv:out_range=tv,format=nv12", "-f", "rawvideo", "-"])

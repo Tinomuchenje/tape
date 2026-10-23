@@ -383,7 +383,7 @@ impl Conn {
         let s: Box<dyn Stream> = if u.tls {
             let mut b = native_tls::TlsConnector::builder();
             // Local test servers with self-signed certificates only.
-            if std::env::var_os("REC_INSECURE_TLS").is_some() {
+            if std::env::var_os("TAPE_INSECURE_TLS").is_some() {
                 b.danger_accept_invalid_certs(true).danger_accept_invalid_hostnames(true);
             }
             let tls = b.build()?;
@@ -471,7 +471,7 @@ impl Conn {
                 obj(&[
                     ("app", Amf::Str(u.app.clone())),
                     ("type", Amf::Str("nonprivate".into())),
-                    ("flashVer", Amf::Str("FMLE/3.0 (compatible; rec-rs)".into())),
+                    ("flashVer", Amf::Str("FMLE/3.0 (compatible; tape)".into())),
                     ("tcUrl", Amf::Str(u.tc_url.clone())),
                     // Enhanced RTMP: codecs we can send.
                     ("fourCcList", Amf::Array(vec![Amf::Str("hvc1".into()), Amf::Str("avc1".into())])),
@@ -619,7 +619,7 @@ fn run(u: RtmpUrl, key: String, shared: Arc<(Mutex<Shared>, Condvar)>, stop: Arc
                 s.error = Some(redact(&e));
                 s.state = format!("retrying in {backoff}s");
                 drop(s);
-                eprintln!("rec: stream {}: {}", u.host, redact(&e));
+                eprintln!("tape: stream {}: {}", u.host, redact(&e));
                 sleep_unless_stopped(&stop, Duration::from_secs(backoff));
                 backoff = (backoff * 2).min(30);
                 lock.lock().unwrap().reconnects += 1;
@@ -630,7 +630,7 @@ fn run(u: RtmpUrl, key: String, shared: Arc<(Mutex<Shared>, Condvar)>, stop: Arc
         {
             let mut s = lock.lock().unwrap();
             if !conn.hevc_ok && !s.hevc_refused {
-                eprintln!("rec: stream {}: the server doesn't take HEVC; switching to H.264", u.host);
+                eprintln!("tape: stream {}: the server doesn't take HEVC; switching to H.264", u.host);
                 s.hevc_refused = true;
             }
             s.state = "live".into();
@@ -666,7 +666,7 @@ fn run(u: RtmpUrl, key: String, shared: Arc<(Mutex<Shared>, Condvar)>, stop: Arc
                         ("audiocodecid".into(), Amf::Number(10.0)),
                         ("audiosamplerate".into(), Amf::Number(48000.0)),
                         ("stereo".into(), Amf::Bool(true)),
-                        ("encoder".into(), Amf::Str("rec-rs".into())),
+                        ("encoder".into(), Amf::Str("tape".into())),
                     ]),
                 ]);
                 let sid = conn.stream_id;
@@ -701,7 +701,7 @@ fn run(u: RtmpUrl, key: String, shared: Arc<(Mutex<Shared>, Condvar)>, stop: Arc
             if s.formats.as_ref().is_some_and(|f| f.0) && opened.elapsed() < Duration::from_secs(10) {
                 s.hevc_failures += 1;
                 if s.hevc_failures >= 2 && !s.hevc_refused {
-                    eprintln!("rec: stream {}: HEVC keeps failing; switching to H.264", u.host);
+                    eprintln!("tape: stream {}: HEVC keeps failing; switching to H.264", u.host);
                     s.hevc_refused = true;
                 }
             }
@@ -710,7 +710,7 @@ fn run(u: RtmpUrl, key: String, shared: Arc<(Mutex<Shared>, Condvar)>, stop: Arc
             s.reconnects += 1;
             s.samples.clear();
             drop(s);
-            eprintln!("rec: stream {}: {} (reconnecting)", u.host, redact(&e));
+            eprintln!("tape: stream {}: {} (reconnecting)", u.host, redact(&e));
             sleep_unless_stopped(&stop, Duration::from_secs(backoff));
             backoff = (backoff * 2).min(30);
         }

@@ -52,7 +52,7 @@ fn shareable_content() -> Result<Retained<SCShareableContent>> {
     match rx.recv_timeout(Duration::from_secs(15)) {
         Ok(Ok(c)) => Ok(c.0),
         Ok(Err(e)) => bail!(
-            "ScreenCaptureKit refused: {e}\n  -> grant Screen & System Audio Recording to Tape (see `rec permissions`)"
+            "ScreenCaptureKit refused: {e}\n  -> grant Screen & System Audio Recording to Tape (see `tape permissions`)"
         ),
         Err(_) => bail!("timed out waiting for ScreenCaptureKit shareable content"),
     }
@@ -111,13 +111,13 @@ pub fn find_window(sel: &str) -> Result<WindowInfo> {
         if let Some(w) = ws.into_iter().find(|w| w.id == id) {
             return Ok(w);
         }
-        bail!("no on-screen window with id {id} (see `rec-rs devices`)");
+        bail!("no on-screen window with id {id} (see `tape devices`)");
     }
     let lower = sel.to_lowercase();
     ws.into_iter()
         .filter(|w| format!("{} {}", w.app, w.title).to_lowercase().contains(&lower))
         .max_by(|a, b| (a.size.0 * a.size.1).total_cmp(&(b.size.0 * b.size.1)))
-        .ok_or_else(|| anyhow!("no on-screen window matches {sel:?} (see `rec-rs devices`)"))
+        .ok_or_else(|| anyhow!("no on-screen window matches {sel:?} (see `tape devices`)"))
 }
 
 pub enum Target {
@@ -239,14 +239,14 @@ impl ScreenCapture {
                     if let Some(r) = region {
                         conf.setSourceRect(*r);
                     }
-                    // Exclude rec's own windows (the GUI preview), which
+                    // Exclude tape's own windows (the GUI preview), which
                     // would otherwise be recorded as a hall of mirrors.
                     let me = std::process::id() as i32;
                     let own = shareable_content()
                         .ok()
                         .and_then(|c| c.applications().iter().find(|a| a.processID() == me));
-                    if std::env::var_os("REC_DEBUG").is_some() {
-                        eprintln!("rec: debug: excluding own app from capture: {}", own.is_some());
+                    if std::env::var_os("TAPE_DEBUG").is_some() {
+                        eprintln!("tape: debug: excluding own app from capture: {}", own.is_some());
                     }
                     match own {
                         Some(app) => SCContentFilter::initWithDisplay_excludingApplications_exceptingWindows(
@@ -299,9 +299,9 @@ impl ScreenCapture {
             let delegate = ProtocolObject::from_ref(&*output);
             let stream = SCStream::initWithFilter_configuration_delegate(SCStream::alloc(), &filter, &conf, Some(delegate));
             let out_proto: &ProtocolObject<dyn SCStreamOutput> = ProtocolObject::from_ref(&*output);
-            let vq = DispatchQueue::new("rec.screen.video", None);
-            let aq = DispatchQueue::new("rec.screen.audio", None);
-            let mq = DispatchQueue::new("rec.screen.mic", None);
+            let vq = DispatchQueue::new("tape.screen.video", None);
+            let aq = DispatchQueue::new("tape.screen.audio", None);
+            let mq = DispatchQueue::new("tape.screen.mic", None);
             stream
                 .addStreamOutput_type_sampleHandlerQueue_error(out_proto, SCStreamOutputType::Screen, Some(&vq))
                 .map_err(|e| anyhow!("add screen output: {}", e.localizedDescription()))?;

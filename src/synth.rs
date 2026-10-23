@@ -131,7 +131,7 @@ impl Synth {
                 let chunk = 480usize; // 10 ms
                 let mut k = 0i64;
                 // Self-test hook: drop every Nth buffer like a glitching device.
-                let drop_every: i64 = std::env::var("REC_SYNTH_DROP_AUDIO").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
+                let drop_every: i64 = std::env::var("TAPE_SYNTH_DROP_AUDIO").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
                 while !stop3.load(Ordering::SeqCst) {
                     let t = start + (k * chunk as i64) as f64 / rate;
                     let now = secs(host_now());
