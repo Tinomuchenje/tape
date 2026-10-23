@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tape: screen and camera recorder for Mac</title>
+<meta name="description" content="Tape records your screen, camera, microphone and system audio on a Mac, keeps a replay buffer and streams to several platforms at once. Free and open source.">
+<link rel="icon" href="favicon.png" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta property="og:title" content="Tape: screen and camera recorder for Mac">
+<meta property="og:description" content="Record your screen, camera, mic and system audio. Replay buffer and multi-platform streaming. Free and open source.">
+<meta property="og:image" content="https://tinomuchenje.github.io/tape/screenshot.jpg">
+<style>
+  :root {
+    --bg: #fbf7f1;
+    --surface: #ffffff;
+    --text: #1f1d22;
+    --muted: #5e5a63;
+    --line: #e6dfd5;
+    --accent: #e8552f;
+    --accent-text: #ffffff;
+    --code: #f2ece3;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #17161a;
+      --surface: #211f25;
+      --text: #f3efe8;
+      --muted: #aaa4b0;
+      --line: #322f37;
+      --accent: #f26a3f;
+      --accent-text: #ffffff;
+      --code: #2a272f;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 17px/1.6 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+  }
+  a { color: var(--accent); }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 0 20px; }
+  header .wrap { display: flex; align-items: center; justify-content: space-between; padding-top: 20px; padding-bottom: 20px; }
+  .brand { display: flex; align-items: center; gap: 10px; color: var(--text); text-decoration: none; font-weight: 650; font-size: 19px; }
+  .brand img { width: 34px; height: 34px; }
+  nav a { color: var(--muted); text-decoration: none; margin-left: 20px; font-size: 15px; }
+  nav a:hover { color: var(--text); }
+
+  .hero { text-align: center; padding-top: 48px; padding-bottom: 32px; }
+  .hero img.icon { width: 112px; height: 112px; }
+  h1 { font-size: clamp(34px, 6vw, 56px); line-height: 1.08; letter-spacing: -0.02em; margin: 18px 0 14px; }
+  .lede { font-size: clamp(18px, 2.4vw, 21px); color: var(--muted); max-width: 640px; margin: 0 auto 28px; }
+  .button {
+    display: inline-block; background: var(--accent); color: var(--accent-text);
+    padding: 14px 26px; border-radius: 12px; font-weight: 600; text-decoration: none; font-size: 17px;
+  }
+  .button:hover { filter: brightness(1.06); }
+  .fine { color: var(--muted); font-size: 14px; margin-top: 12px; }
+
+  .shot { margin: 40px auto 0; max-width: 1000px; }
+  .shot img {
+    width: 100%; height: auto; display: block; border-radius: 12px;
+    border: 1px solid var(--line); box-shadow: 0 24px 60px rgba(0,0,0,.18);
+  }
+
+  section { padding: 56px 0; }
+  h2 { font-size: clamp(26px, 3.6vw, 34px); letter-spacing: -0.01em; margin: 0 0 24px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 20px 22px; }
+  .card h3 { margin: 0 0 6px; font-size: 18px; }
+  .card p { margin: 0; color: var(--muted); font-size: 16px; }
+
+  ol.steps { padding-left: 22px; margin: 0; }
+  ol.steps li { margin-bottom: 10px; }
+  .note { background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 10px; padding: 14px 18px; margin-top: 20px; color: var(--muted); font-size: 16px; }
+  code, pre { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 14px; }
+  pre { background: var(--code); border-radius: 10px; padding: 14px 16px; overflow-x: auto; margin: 12px 0 0; }
+  :not(pre) > code { background: var(--code); padding: 2px 6px; border-radius: 6px; }
+
+  footer { border-top: 1px solid var(--line); padding: 28px 0 40px; color: var(--muted); font-size: 15px; }
+  footer p { margin: 4px 0; }
+
+  @media (max-width: 560px) {
+    nav a { margin-left: 14px; }
+    nav a.hide-sm { display: none; }
+    .hero { padding-top: 28px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <a class="brand" href="./"><img src="icon.png" alt="" width="34" height="34">Tape</a>
+    <nav>
+      <a href="#features" class="hide-sm">Features</a>
+      <a href="#install">Install</a>
+      <a href="https://github.com/Tinomuchenje/tape">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="wrap hero">
+    <img class="icon" src="icon.png" alt="Tape icon, a cassette tape" width="112" height="112">
+    <h1>Record your screen and camera on a Mac.</h1>
+    <p class="lede">Tape records your screen, webcam, microphone and system audio into one file. It keeps a replay buffer and streams to several platforms at once. Free and open source.</p>
+    <a class="button" href="https://github.com/Tinomuchenje/tape/releases/latest/download/Tape.dmg">Download for Mac</a>
+    <p class="fine">macOS 14 or later · Apple Silicon and Intel · <a href="#install">How to open it the first time</a></p>
+    <div class="shot">
+      <img src="screenshot.jpg" alt="Tape's main window: a live preview, scene picker, screen, camera and audio settings, and the record button with level meters" width="1280" height="811">
+    </div>
+  </div>
+
+  <section id="features">
+    <div class="wrap">
+      <h2>What it does</h2>
+      <div class="grid">
+        <div class="card"><h3>Screen, camera and sound</h3><p>Record a display or a single window with your webcam, mic and system audio in one <code>.mov</code> or <code>.mp4</code>.</p></div>
+        <div class="card"><h3>Scenes</h3><p>Screen, Screen + Cam, Presenter or Camera. Drag the camera overlay anywhere and pick its shape, border and shadow, live while recording.</p></div>
+        <div class="card"><h3>Replay buffer</h3><p>Keep the last 15 to 300 seconds in memory and save them with ⇧⌘S without stopping anything.</p></div>
+        <div class="card"><h3>Stream everywhere</h3><p>Go live to YouTube, Twitch, Kick or any RTMP or WHIP server, all at once from one encode. Stream keys stay in the Keychain.</p></div>
+        <div class="card"><h3>Audio mixer</h3><p>A fader, meter and mute for the mic and system audio. Changes apply live to the file, the replay buffer and streams.</p></div>
+        <div class="card"><h3>Clean voice</h3><p>Removes fans, hum and room noise and evens out your level. The raw mic is kept as its own track.</p></div>
+        <div class="card"><h3>Mic check</h3><p>Warns while you record if the mic is too quiet, too loud, cutting out or silent.</p></div>
+        <div class="card"><h3>Camera file</h3><p>Optionally saves the camera on its own, full frame, in step with the main recording for editing.</p></div>
+        <div class="card"><h3>Built on Apple frameworks</h3><p>ScreenCaptureKit, VideoToolbox and Metal. Hardware H.264, HEVC or ProRes, with no FFmpeg or Electron inside.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="install">
+    <div class="wrap">
+      <h2>Install</h2>
+      <ol class="steps">
+        <li><a href="https://github.com/Tinomuchenje/tape/releases/latest/download/Tape.dmg">Download Tape.dmg</a>, open it and drag Tape to Applications.</li>
+        <li>Open Tape. macOS says it can't check Tape for malicious software. Click <strong>Done</strong>.</li>
+        <li>Open <strong>System Settings → Privacy &amp; Security</strong>, scroll to <strong>Security</strong> and click <strong>Open Anyway</strong> next to the message about Tape. Confirm with your password.</li>
+        <li>Allow Screen Recording, Microphone and Camera when Tape asks.</li>
+      </ol>
+      <p class="note">Tape isn't notarised by Apple yet, so macOS asks you to confirm once. You only do this the first time. Until Tape is notarised, get new versions from this page or from <strong>Check for Updates…</strong>, which opens the latest release.</p>
+
+      <h2 style="margin-top:48px">Build from source</h2>
+      <p>You need Rust and the Xcode command line tools.</p>
+      <pre>git clone https://github.com/Tinomuchenje/tape.git
+cd tape
+scripts/build.sh
+open dist/Tape.app</pre>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>Tape is free and open source under the MIT or Apache-2.0 licence. <a href="https://github.com/Tinomuchenje/tape">Source on GitHub</a>.</p>
+    <p>Tape started as a fork of <a href="https://github.com/michaelshimeles/rec-rs">Rec</a> by Michael Shimeles. Thanks to Michael for the original work.</p>
+    <p>This page uses no cookies, analytics or tracking.</p>
+  </div>
+</footer>
+</body>
+</html>
