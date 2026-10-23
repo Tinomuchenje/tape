@@ -15,7 +15,7 @@ use objc2_foundation::{NSBundle, NSURL};
 
 use crate::util::ns;
 
-const LATEST_RELEASE: &str = "https://github.com/Tinomuchenje/rec-rs/releases/latest";
+const LATEST_RELEASE: &str = "https://github.com/Tinomuchenje/tape/releases/latest";
 
 thread_local! {
     /// The `SPUStandardUpdaterController`, kept for the life of the app; `None` without Sparkle.

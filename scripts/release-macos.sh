@@ -12,7 +12,7 @@
 # Notarization credentials come from a notarytool keychain profile. Create it once with an
 # app-specific password from account.apple.com and the team ID shown in the certificate name:
 #
-#   xcrun notarytool store-credentials rec-notary --apple-id you@example.com --team-id TEAMID
+#   xcrun notarytool store-credentials tape-notary --apple-id you@example.com --team-id TEAMID
 #
 # Updates are signed with the EdDSA key in the login keychain under the account tape, whose public
 # half is SUPublicEDKey in support/Info.plist. Keep an exported copy somewhere safe: installed
@@ -22,19 +22,19 @@
 #   "$(scripts/fetch-sparkle.sh)/bin/generate_keys" --account tape -f tape-sparkle.key  # on a new Mac
 #
 #   SIGN_IDENTITY    signing identity (default: the first "Developer ID Application" in the keychain)
-#   NOTARY_PROFILE   notarytool keychain profile (default: rec-notary)
+#   NOTARY_PROFILE   notarytool keychain profile (default: tape-notary)
 #   NOTARY_KEYCHAIN  keychain holding that profile (default: the login keychain)
 #   SPARKLE_ACCOUNT  login keychain account of the update signing key (default: tape)
 #   NOTARIZE=0       sign and package without notarizing or writing the update feed
 set -euo pipefail
 cd "$(dirname "$0")/.."
-# The repo is synced between machines (Mutagen): keep build output outside it.
-export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$HOME/.cache/rec-rs-target}"
+# Keep build output outside the repo (worktrees share it).
+export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$HOME/.cache/tape-target}"
 
 identity=${SIGN_IDENTITY:-$(security find-identity -v -p codesigning | sed -n 's/.*"\(Developer ID Application: .*\)"$/\1/p' | head -1)}
 [ -n "$identity" ] || { echo "no Developer ID Application certificate in the keychain; set SIGN_IDENTITY" >&2; exit 1; }
 notarize=${NOTARIZE:-1}
-notary=(--keychain-profile "${NOTARY_PROFILE:-rec-notary}")
+notary=(--keychain-profile "${NOTARY_PROFILE:-tape-notary}")
 [ -z "${NOTARY_KEYCHAIN:-}" ] || notary+=(--keychain "$NOTARY_KEYCHAIN")
 if [ "$notarize" = 1 ] && ! xcrun notarytool history "${notary[@]}" >/dev/null; then
   echo "no notarytool credentials; create the profile described at the top of $0, set NOTARY_PROFILE, or set NOTARIZE=0" >&2
@@ -52,7 +52,7 @@ done
 min_macos=$(plutil -extract LSMinimumSystemVersion raw "$plist")
 # Build for the oldest macOS the app supports rather than the compiler's default.
 export MACOSX_DEPLOYMENT_TARGET=$min_macos
-repo=https://github.com/Tinomuchenje/rec-rs
+repo=https://github.com/Tinomuchenje/tape
 sparkle=$(scripts/fetch-sparkle.sh)
 sparkle_account=${SPARKLE_ACCOUNT:-tape}
 sparkle_key=$(plutil -extract SUPublicEDKey raw "$plist")
@@ -116,8 +116,8 @@ app=$work/Tape.app
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources" "$app/Contents/Frameworks"
 cp "$plist" "$app/Contents/Info.plist"
 cp support/AppIcon.icns "$app/Contents/Resources/AppIcon.icns"
-lipo -create -output "$app/Contents/MacOS/rec-rs" \
-  "$CARGO_TARGET_DIR/aarch64-apple-darwin/release/rec-rs" "$CARGO_TARGET_DIR/x86_64-apple-darwin/release/rec-rs"
+lipo -create -output "$app/Contents/MacOS/tape" \
+  "$CARGO_TARGET_DIR/aarch64-apple-darwin/release/tape" "$CARGO_TARGET_DIR/x86_64-apple-darwin/release/tape"
 # The app isn't sandboxed, so Sparkle's XPC services aren't needed; headers and modules are
 # build-time only.
 framework=$app/Contents/Frameworks/Sparkle.framework

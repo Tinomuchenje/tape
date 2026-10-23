@@ -16,16 +16,16 @@ use objc2_foundation::NSBundle;
 
 use crate::util::ns;
 
-const DISCLAIM_ENV: &str = "REC_DISCLAIMED";
+const DISCLAIM_ENV: &str = "TAPE_DISCLAIMED";
 
 /// Re-exec ourselves with responsibility disclaimed so TCC attributes screen,
-/// mic and camera access to `rec` itself rather than the terminal/tmux/IDE that
+/// mic and camera access to `tape` itself rather than the terminal/tmux/IDE that
 /// launched it. Returns only in the child (or if disclaim is unavailable).
 pub fn disclaim_and_reexec() {
-    if std::env::var_os(DISCLAIM_ENV).is_some() || std::env::var_os("REC_NO_DISCLAIM").is_some() {
+    if std::env::var_os(DISCLAIM_ENV).is_some() || std::env::var_os("TAPE_NO_DISCLAIM").is_some() {
         return;
     }
-    // Already responsible for ourselves (launched via `open Rec.app`, Login
+    // Already responsible for ourselves (launched via `open Tape.app`, Login
     // Items, Finder): nothing to do, and LaunchServices expects this process
     // to be the app. Checking the actual responsible pid (not ppid == 1)
     // keeps backgrounded/orphaned CLI launches correct.
@@ -46,7 +46,7 @@ pub fn disclaim_and_reexec() {
         )
     };
     if sym.is_null() {
-        eprintln!("rec: warning: responsibility disclaim unavailable; permissions attach to the launching app");
+        eprintln!("tape: warning: responsibility disclaim unavailable; permissions attach to the launching app");
         return;
     }
     let set_disclaim: SetDisclaim = unsafe { std::mem::transmute::<*mut c_void, SetDisclaim>(sym) };
@@ -93,7 +93,7 @@ pub fn disclaim_and_reexec() {
         );
         libc::posix_spawnattr_destroy(&mut attr);
         if rc != 0 {
-            eprintln!("rec: warning: disclaimed spawn failed ({rc}); continuing in-process");
+            eprintln!("tape: warning: disclaimed spawn failed ({rc}); continuing in-process");
             return;
         }
         CHILD.store(pid, std::sync::atomic::Ordering::SeqCst);
@@ -195,22 +195,22 @@ fn request_screen() {
             .stdout(Stdio::null())
             .status();
         if !r.as_ref().is_ok_and(|s| s.success()) {
-            eprintln!("rec: warning: could not reset the screen recording decision: {r:?}");
+            eprintln!("tape: warning: could not reset the screen recording decision: {r:?}");
         }
     }
     let r = std::env::current_exe().and_then(|exe| {
         Command::new(exe)
             .arg("request-screen")
-            .env("REC_NO_DISCLAIM", "1")
+            .env("TAPE_NO_DISCLAIM", "1")
             .status()
     });
     if !r.as_ref().is_ok_and(|s| s.success()) {
-        eprintln!("rec: warning: could not request screen recording: {r:?}");
+        eprintln!("tape: warning: could not request screen recording: {r:?}");
     }
 }
 
 /// The bundle ID of the .app this binary is in. Run through a symlink such as
-/// `dist/rec-rs`, `NSBundle::mainBundle` finds no bundle and reads the
+/// `dist/tape`, `NSBundle::mainBundle` finds no bundle and reads the
 /// Info.plist embedded in the binary, which names the release.
 fn app_bundle_id() -> Option<String> {
     bundle_id_of(&std::env::current_exe().ok()?)
@@ -226,7 +226,7 @@ fn bundle_id_of(exe: &Path) -> Option<String> {
     Some(id.to_string())
 }
 
-/// The `request-screen` command. It adds Rec to the Screen & System Audio
+/// The `request-screen` command. It adds Tape to the Screen & System Audio
 /// Recording list in System Settings and shows the system's prompt.
 pub fn request_screen_here() {
     let ok = CGRequestScreenCaptureAccess();
@@ -235,8 +235,8 @@ pub fn request_screen_here() {
 
 /// Request every permission not yet granted, all at once so the user sees every
 /// prompt in one go. Screen recording cannot be granted inline: the request
-/// registers `rec` in System Settings > Privacy & Security > Screen & System
-/// Audio Recording; the user toggles it on and relaunches rec.
+/// registers `tape` in System Settings > Privacy & Security > Screen & System
+/// Audio Recording; the user toggles it on and relaunches tape.
 pub fn request_all(screen: bool, mic: bool, camera: bool, wait: Duration) {
     let mic_rx = (mic && mic_status() == Status::NotDetermined).then(|| av_request_async(false));
     let cam_rx = (camera && camera_status() == Status::NotDetermined).then(|| av_request_async(true));
@@ -264,23 +264,23 @@ mod tests {
 
     #[test]
     fn bundle_id_comes_from_the_app_behind_a_symlink() {
-        let dir = std::env::temp_dir().join(format!("rec-tcc-test-{}", std::process::id()));
-        let macos = dir.join("Rec.app/Contents/MacOS");
+        let dir = std::env::temp_dir().join(format!("tape-tcc-test-{}", std::process::id()));
+        let macos = dir.join("Tape.app/Contents/MacOS");
         std::fs::create_dir_all(&macos).unwrap();
         std::fs::write(
-            dir.join("Rec.app/Contents/Info.plist"),
+            dir.join("Tape.app/Contents/Info.plist"),
             r#"<plist version="1.0"><dict><key>CFBundleIdentifier</key><string>com.example.rec.test</string></dict></plist>"#,
         )
         .unwrap();
-        std::fs::write(macos.join("rec-rs"), "").unwrap();
+        std::fs::write(macos.join("tape"), "").unwrap();
         std::fs::write(dir.join("loose"), "").unwrap();
-        std::os::unix::fs::symlink("Rec.app/Contents/MacOS/rec-rs", dir.join("rec-rs")).unwrap();
+        std::os::unix::fs::symlink("Tape.app/Contents/MacOS/tape", dir.join("tape")).unwrap();
         assert_eq!(
-            bundle_id_of(&dir.join("rec-rs")).as_deref(),
+            bundle_id_of(&dir.join("tape")).as_deref(),
             Some("com.example.rec.test")
         );
         assert_eq!(
-            bundle_id_of(&macos.join("rec-rs")).as_deref(),
+            bundle_id_of(&macos.join("tape")).as_deref(),
             Some("com.example.rec.test")
         );
         assert_eq!(bundle_id_of(&dir.join("loose")), None);

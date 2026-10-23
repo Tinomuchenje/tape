@@ -135,7 +135,7 @@ impl MenuBar {
         mb
     }
 
-    /// Open the status item's menu (REC_SHOW_MENU, for screenshots).
+    /// Open the status item's menu (TAPE_SHOW_MENU, for screenshots).
     pub fn pop_up(&self) {
         if let Some(mtm) = MainThreadMarker::new()
             && let Some(b) = self.status.button(mtm)

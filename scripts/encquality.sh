@@ -5,13 +5,13 @@
 #   scripts/encquality.sh [CASE...]
 #
 # CASE is NAME:CODEC:KBPS[:basic], CODEC h264 or hevc; "basic" sets
-# REC_LIVE_BASIC=1 (the encoder settings before the quality work).
+# TAPE_LIVE_BASIC=1 (the encoder settings before the quality work).
 # Sources (made once, ffv1): the text card (scripts/testcard.swift)
 # scrolling 6 px a frame, and ffmpeg's testsrc2 (moving graphics, text and
 # gradients over the whole frame).
 set -eu
 cd "$(dirname "$0")/.."
-OUT="${REC_TEST_DIR:-$HOME/Movies/rec-rs-tests}/encquality"
+OUT="${TAPE_TEST_DIR:-$HOME/Movies/tape-tests}/encquality"
 mkdir -p "$OUT"
 CASES=${*:-"h264-6m:h264:6000:basic h264-6m:h264:6000 h264-40m:h264:40000:basic h264-40m:h264:40000 hevc-30m:hevc:30000"}
 [ -f "$OUT/card.png" ] || swift scripts/testcard.swift "$OUT/card.png"
@@ -19,7 +19,7 @@ CASES=${*:-"h264-6m:h264:6000:basic h264-6m:h264:6000 h264-40m:h264:40000:basic 
   -vf "scale=3840:2160:flags=lanczos,scroll=v=0.0028,format=bgra" -c:v ffv1 "$OUT/scroll.mkv"
 [ -f "$OUT/motion.mkv" ] || ffmpeg -v error -f lavfi -i "testsrc2=s=3840x2160:r=60" -t 2 \
   -vf format=bgra -c:v ffv1 "$OUT/motion.mkv"
-CARGO_TARGET_DIR=${CARGO_TARGET_DIR:-$HOME/.cache/rec-rs-target}
+CARGO_TARGET_DIR=${CARGO_TARGET_DIR:-$HOME/.cache/tape-target}
 export CARGO_TARGET_DIR
 cargo test --release --no-run -q 2>/dev/null
 for src in scroll motion; do
@@ -27,9 +27,9 @@ for src in scroll motion; do
     name=${c%%:*}; rest=${c#*:}; codec=${rest%%:*}; rest=${rest#*:}; kbps=${rest%%:*}
     basic=""; case "$c" in *:basic) basic=1; name="$name-basic" ;; esac
     f="$OUT/$src-$name.$codec"
-    REC_LIVE_BASIC=${basic:+1} REC_ENC_SRC="$OUT/$src.mkv" REC_ENC_OUT="$f" REC_ENC_BITRATE=$((kbps * 1000)) \
-      REC_ENC_HEVC=$([ "$codec" = hevc ] && echo 1 || echo 0) \
-      sh -c '[ -n "$REC_LIVE_BASIC" ] || unset REC_LIVE_BASIC; cargo test --release -q encode_file -- --ignored --exact live::video::tests::encode_file' >/dev/null 2>&1
+    TAPE_LIVE_BASIC=${basic:+1} TAPE_ENC_SRC="$OUT/$src.mkv" TAPE_ENC_OUT="$f" TAPE_ENC_BITRATE=$((kbps * 1000)) \
+      TAPE_ENC_HEVC=$([ "$codec" = hevc ] && echo 1 || echo 0) \
+      sh -c '[ -n "$TAPE_LIVE_BASIC" ] || unset TAPE_LIVE_BASIC; cargo test --release -q encode_file -- --ignored --exact live::video::tests::encode_file' >/dev/null 2>&1
     # Pair frames by index: Matroska's millisecond timestamps put 60 fps
     # frames 16/17/17 ms apart, which would mismatch every third frame.
     # Read every stream as BT.709 limited range (what the encoder writes),

@@ -38,7 +38,7 @@ extern "C-unwind" fn should_reopen(_this: &AnyObject, _sel: Sel, _app: &AnyObjec
 /// event loop is built (the class is registered then).
 pub fn install() {
     let Some(cls) = AnyClass::get(c"WinitApplicationDelegate") else {
-        eprintln!("rec: warning: winit app delegate not found; Dock quit won't finalize recordings");
+        eprintln!("tape: warning: winit app delegate not found; Dock quit won't finalize recordings");
         return;
     };
     let cls = cls as *const AnyClass as *mut AnyClass;

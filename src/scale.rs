@@ -135,7 +135,7 @@ fn planes(buf: &CVPixelBuffer) -> Option<Vec<(MTLPixelFormat, [f64; 4])>> {
 
 impl FrameScaler {
     pub fn new(width: usize, height: usize) -> Option<FrameScaler> {
-        let metal = if std::env::var("REC_SCALER").as_deref() == Ok("vt") { None } else { metal() };
+        let metal = if std::env::var("TAPE_SCALER").as_deref() == Ok("vt") { None } else { metal() };
         let vt = if metal.is_none() { Some(vt_session()?) } else { None };
         Some(FrameScaler { metal, vt, size: (width, height) })
     }

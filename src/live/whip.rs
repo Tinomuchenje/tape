@@ -220,7 +220,7 @@ fn resource_url(endpoint: &HttpUrl, location: &str) -> String {
 }
 
 fn agent() -> ureq::Agent {
-    let insecure = std::env::var_os("REC_INSECURE_TLS").is_some();
+    let insecure = std::env::var_os("TAPE_INSECURE_TLS").is_some();
     ureq::Agent::config_builder()
         .tls_config(
             ureq::tls::TlsConfig::builder()
@@ -412,7 +412,7 @@ fn run(url: String, key: String, shared: Arc<(Mutex<Shared>, Condvar)>, stop: Ar
         s.state = format!("retrying in {backoff}s");
         s.reconnects += 1;
         drop(s);
-        eprintln!("rec: stream {host}: {} (reconnecting)", redact(&e));
+        eprintln!("tape: stream {host}: {} (reconnecting)", redact(&e));
         sleep_unless_stopped(&stop, Duration::from_secs(backoff));
         backoff = (backoff * 2).min(30);
     }
@@ -558,7 +558,7 @@ fn stream(sess: &mut Session, shared: &Arc<(Mutex<Shared>, Condvar)>, stop: &Ato
         let (item, next_due) = if connected { take_due(&mut lock.lock().unwrap().queue, &mut anchor, now) } else { (None, None) };
         if let Some((m, wallclock, rtp_secs)) = item {
             let pts = m.pts();
-            if std::env::var_os("REC_DEBUG").is_some() && first_sent[matches!(m, Media::Audio { .. }) as usize].is_none() {
+            if std::env::var_os("TAPE_DEBUG").is_some() && first_sent[matches!(m, Media::Audio { .. }) as usize].is_none() {
                 first_sent[matches!(m, Media::Audio { .. }) as usize] = Some(pts);
                 eprintln!("whip: first {} pts {pts:.4} late {:.1} ms", if matches!(m, Media::Audio { .. }) { "audio" } else { "video" }, (now - wallclock).as_secs_f64() * 1000.0);
             }
@@ -585,7 +585,7 @@ fn stream(sess: &mut Session, shared: &Arc<(Mutex<Shared>, Condvar)>, stop: &Ato
             let mut s = lock.lock().unwrap();
             let now = Instant::now();
             s.samples.push_back((now, sess.sent));
-            if std::env::var_os("REC_DEBUG").is_some() {
+            if std::env::var_os("TAPE_DEBUG").is_some() {
                 eprintln!("whip: written {} sent {} send errors {}", sess.written, sess.sent, sess.send_errors);
             }
             while s.samples.front().is_some_and(|(t, _)| now - *t > Duration::from_secs(3)) {

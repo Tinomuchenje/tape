@@ -67,7 +67,7 @@ func card() -> CGImage {
     NSGradient(colors: [.systemPurple, .systemTeal, .systemYellow])!.draw(in: NSRect(x: 2560, y: y, width: 2400, height: 300), angle: 0)
     y += 360
     // A dense paragraph.
-    let para = String(repeating: "Rec records the screen, system audio, microphone and webcam into one file that plays in QuickTime. ", count: 18)
+    let para = String(repeating: "Tape records the screen, system audio, microphone and webcam into one file that plays in QuickTime. ", count: 18)
     let style = NSMutableParagraphStyle(); style.lineSpacing = 6
     (para as NSString).draw(in: NSRect(x: 80, y: y, width: 4900, height: CGFloat(H) - y - 60),
                             withAttributes: [.font: NSFont.systemFont(ofSize: 26), .foregroundColor: NSColor.darkGray, .paragraphStyle: style])

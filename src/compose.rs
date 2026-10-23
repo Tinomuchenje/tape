@@ -583,7 +583,7 @@ impl Compositor {
             let url = objc2_foundation::NSURL::fileURLWithPath(&ns(&path.to_string_lossy()));
             let opts = dict(vec![(objc2_core_image::kCIImageApplyOrientationProperty, num_b(true))]);
             let Some(pic) = CIImage::imageWithContentsOfURL_options(&url, Some(&opts)) else {
-                eprintln!("rec: background image unreadable: {}", path.display());
+                eprintln!("tape: background image unreadable: {}", path.display());
                 return img;
             };
             let e = pic.extent();

@@ -143,12 +143,12 @@ define_class!(
         unsafe fn did_output(&self, _o: &AVCaptureOutput, sb: &CMSampleBuffer, _c: &AVCaptureConnection) {
             unsafe {
                 if let Some(pb) = sb.image_buffer() {
-                    // REC_DEBUG: the camera's color tags (once).
+                    // TAPE_DEBUG: the camera's color tags (once).
                     static LOGGED: std::sync::Once = std::sync::Once::new();
-                    if std::env::var_os("REC_DEBUG").is_some() {
+                    if std::env::var_os("TAPE_DEBUG").is_some() {
                         LOGGED.call_once(|| {
                             let a = pb.attachments(objc2_core_video::CVAttachmentMode::ShouldPropagate);
-                            eprintln!("rec: debug: camera frame attachments: {a:?}");
+                            eprintln!("tape: debug: camera frame attachments: {a:?}");
                         });
                     }
                     let pts = sb.presentation_time_stamp();
@@ -196,7 +196,7 @@ impl Camera {
                 })
             }
         }
-        .ok_or_else(|| anyhow!("no camera found (see `rec-rs devices`)"))
+        .ok_or_else(|| anyhow!("no camera found (see `tape devices`)"))
     }
 
     /// The unique ID of the camera `sel` names (see `device`).
@@ -235,7 +235,7 @@ impl Camera {
             )])));
             output.setAlwaysDiscardsLateVideoFrames(true);
             let delegate = Self::make_delegate(shared);
-            let queue = DispatchQueue::new("rec.camera", None);
+            let queue = DispatchQueue::new("tape.camera", None);
             output.setSampleBufferDelegate_queue(Some(ProtocolObject::from_ref(&*delegate)), Some(&queue));
             if !session.canAddOutput(&output) {
                 bail!("cannot add camera output");
@@ -310,7 +310,7 @@ impl Mic {
             let output = AVCaptureAudioDataOutput::new();
             let this = MicOutput::alloc().set_ivars(MicIvars { shared });
             let delegate: Retained<MicOutput> = msg_send![super(this), init];
-            let queue = DispatchQueue::new("rec.mic", None);
+            let queue = DispatchQueue::new("tape.mic", None);
             output.setSampleBufferDelegate_queue(Some(ProtocolObject::from_ref(&*delegate)), Some(&queue));
             if !session.canAddOutput(&output) {
                 bail!("cannot add microphone output");

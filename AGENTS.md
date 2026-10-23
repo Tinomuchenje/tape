@@ -2,7 +2,7 @@
 
 Choose the applicable parts of this workflow for the requested task. It comes
 from [michaelshimeles/skills](https://github.com/michaelshimeles/skills). The
-sections from "This repo" down are specific to rec-rs.
+sections from "This repo" down are specific to tape.
 
 - Read-only reviews, explanations, and investigations need no worktree, commit,
   PR, or Greptile run. If an investigation leads to edits, isolate those edits.
@@ -93,38 +93,33 @@ the PR is merged or closed.
 
 ## This repo
 
-rec-rs is Tape, a screen and camera recorder for macOS written in Rust on Apple
-frameworks. It is Tinomuchenje's fork of
-[Rec](https://github.com/michaelshimeles/rec-rs), with its own bundle ID
-(`com.tinomuchenje.rec`) and update feed. `site/` still holds upstream's
-download page. `README.md` covers the app's design and layout, and
-`site/README.md` covers the page.
+Tape is a screen and camera recorder for macOS, written in Rust on Apple
+frameworks, by Tinomuchenje. It started as a fork of
+[Rec](https://github.com/michaelshimeles/rec-rs) by Michael Shimeles and is
+now a separate project with no upstream. `README.md` covers the app's design
+and layout.
 
-- The `upstream` remote is michaelshimeles/rec-rs. Bring its changes in by
-  merging `upstream/main` on a task branch, then a PR into `main`. Offer fixes
-  that aren't specific to Tape upstream as well, so the fork stays small.
+- Keep the credit to Rec and Michael Shimeles in `README.md`, `LICENSE-MIT`
+  and the About window (`NSHumanReadableCopyright` in `support/Info.plist`).
+  Otherwise the app, docs and releases use Tape's own name and branding only.
+- `PROGRESS.md`, `PERFORMANCE.md` and `analysis/` are records from Rec, before
+  the fork. Leave their history as it is.
 - Do task work in a worktree outside the checkout, and keep build output,
-  recordings, `node_modules` and evidence out of it. `scripts/build.sh`
-  already builds into `~/.cache/rec-rs-target`, and test recordings go to
-  `~/Movies/rec-rs-tests/`.
+  recordings and evidence out of it. `scripts/build.sh` already builds into
+  `~/.cache/tape-target`, and test recordings go to `~/Movies/tape-tests/`.
 - Commit messages are conventional commits, usually scoped to the area they
-  touch, such as `feat(app):`, `fix(writer):`, `feat(site):` or `docs:`.
-- rec-rs is a clean-room implementation. Don't copy OBS code or assets, and
+  touch, such as `feat(app):`, `fix(writer):` or `docs:`.
+- The code is a clean-room implementation. Don't copy OBS code or assets, and
   don't suggest that Tape is affiliated with the OBS Project.
-- Performance numbers, in the README or on the site, come from measurements
-  recorded in `PERFORMANCE.md`.
-- The site stays one fast page with no third-party requests in production.
-  Vercel Web Analytics is its only analytics. It sets no cookies, stores no
-  personal data and loads from the site's own domain. Add no other tracking.
-  The copy describes features the app ships today.
-- Don't deploy the site, create Vercel projects, or publish releases or tags
-  unless Tinomuchenje asks.
+- Performance numbers in the README come from measurements recorded in
+  `PERFORMANCE.md`.
+- Don't publish releases or tags unless Tinomuchenje asks.
 
 ## Checks in this repo
 
 For the app:
 
-- `CARGO_TARGET_DIR=$HOME/.cache/rec-rs-target cargo test` runs the unit tests.
+- `CARGO_TARGET_DIR=$HOME/.cache/tape-target cargo test` runs the unit tests.
 - `scripts/build.sh` builds and signs `dist/Tape.app`. After it,
   `scripts/selftest.sh` records through every pipeline and verifies each file.
   Run it for changes to capture, compositing, encoding, audio or the writer. It
@@ -134,22 +129,8 @@ For the app:
   reformatted `src/app/mod.rs` and `src/app/ui.rs` by accident, and commit
   `aed1e1a` undid it.
 
-For the site, from `site/`:
-
-- `npm ci`, then `npm run check` (expect 0 errors and 0 warnings) and
-  `npm run build`.
-- Run the Svelte MCP `svelte-autofixer` on every `.svelte` file you edit until
-  it reports no issues.
-- For page changes, run `npm run preview` and look at desktop and mobile widths
-  in light and dark, then flip the theme toggle. Check for console errors and
-  horizontal overflow. A running preview server doesn't pick up a new build, so
-  restart it after each `npm run build`.
-- `curl -sI http://localhost:<port>/download` returns a 302 whose `location` is
-  `DOWNLOAD_URL` from `site/src/lib/site.ts`.
-
 For every change, `git diff --check` checks whitespace. Keep generated evidence
-under the ignored `.artifacts/` directory of a checkout outside the synced
-folder.
+under the ignored `.artifacts/` directory.
 
 ## Skills
 

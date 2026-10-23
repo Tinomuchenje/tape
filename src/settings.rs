@@ -1,4 +1,4 @@
-//! App settings, persisted as JSON in ~/Library/Application Support/rec-rs.
+//! App settings, persisted as JSON in ~/Library/Application Support/tape.
 //! The app turns them into the same `record` arguments the CLI takes, so
 //! both share one code path (`crate::prepare`).
 
@@ -104,7 +104,7 @@ pub struct Settings {
     pub keyframe_secs: f64,
     pub stream_cbr: bool,
     pub stream_audio_kbps: u32,
-    /// Window to record (ID from `rec-rs devices`); not persisted because
+    /// Window to record (ID from `tape devices`); not persisted because
     /// window IDs change between launches.
     #[serde(skip)]
     pub window: Option<u32>,
@@ -185,13 +185,13 @@ fn value<T: ValueEnum>(v: T) -> String {
 }
 
 impl Settings {
-    /// $REC_SETTINGS, else ~/Library/Application Support/rec-rs/settings.json.
+    /// $TAPE_SETTINGS, else ~/Library/Application Support/tape/settings.json.
     pub fn path() -> PathBuf {
-        if let Some(p) = std::env::var_os("REC_SETTINGS") {
+        if let Some(p) = std::env::var_os("TAPE_SETTINGS") {
             return PathBuf::from(p);
         }
         let home = std::env::var_os("HOME").map(PathBuf::from).unwrap_or_default();
-        home.join("Library/Application Support/rec-rs/settings.json")
+        home.join("Library/Application Support/tape/settings.json")
     }
 
     pub fn load() -> Self {
@@ -200,8 +200,8 @@ impl Settings {
         if s.stream_audio_kbps == 160 {
             s.stream_audio_kbps = 192;
         }
-        // REC_OUTPUT_DIR overrides the folder (self-tests keep files out of ~/Movies).
-        if let Some(d) = std::env::var_os("REC_OUTPUT_DIR") {
+        // TAPE_OUTPUT_DIR overrides the folder (self-tests keep files out of ~/Movies).
+        if let Some(d) = std::env::var_os("TAPE_OUTPUT_DIR") {
             s.output_dir = PathBuf::from(d);
         }
         s
@@ -355,10 +355,10 @@ impl Settings {
     /// A fresh timestamped file in the output folder.
     pub fn new_output_file(&self) -> PathBuf {
         let ext = if self.container == "mp4" && self.codec != Some(Codec::Prores) { "mp4" } else { "mov" };
-        self.output_dir.join(timestamped("rec", ext))
+        self.output_dir.join(timestamped("tape", ext))
     }
 
-    /// `rec-rs record` arguments for these settings (`output` None = preview).
+    /// `tape record` arguments for these settings (`output` None = preview).
     pub fn record_args(&self, output: Option<&std::path::Path>) -> Vec<String> {
         let mut a: Vec<String> = vec!["-q".into(), "-r".into(), self.resolution.clone()];
         a.extend(["--fps".into(), self.fps.to_string()]);

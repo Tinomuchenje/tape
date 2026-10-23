@@ -1,5 +1,7 @@
 # PERFORMANCE
 
+*Measured on Rec before Tape forked from it; Tape uses the same capture and encode pipeline. Commands and paths here use Rec's old names (`rec`, `rec-rs`).*
+
 All numbers come from this machine: a MacBook Pro with an M4 Pro, macOS 27, and a Retina
 display at 4112×2658 pixels. Builds are release builds of `rec-rs`.
 
