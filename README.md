@@ -63,6 +63,10 @@ the top of the script). Installed copies check that feed once a day through
 [Sparkle](https://sparkle-project.org) and offer to install a newer release; Tape › Check for
 Updates…, also in the menu bar item's menu, checks at once.
 
+Without a Developer ID, `DEVELOPER_ID=0 scripts/release-macos.sh` builds the same app and DMG
+signed with `TAPE_SIGN_IDENTITY` (else ad hoc), without Sparkle or notarization. macOS asks people
+to confirm it once in Privacy & Security, and Check for Updates opens the latest release instead.
+
 Sparkle can't replace a copy on the disk image, or one that macOS runs from a temporary
 read-only folder. macOS does that to a downloaded app that was opened where it landed and never
 moved in Finder (App Translocation). Tape checks for both when it starts and offers to fix it:
@@ -425,3 +429,4 @@ tape record --no-record --stream rtmp://localhost/live --stream http://localhost
 | `scripts/` | Build, self-test, soak, sync checks (`synccheck.py` with ffmpeg, `avsync.swift` with AVFoundation), level checks (`levelcheck.py`) and quality metrics (`quality.sh`, `encquality.sh`, `testcard.swift`) |
 | `AGENTS.md`, `.agents/skills/` | Agent workflow, checks and skills from [michaelshimeles/skills](https://github.com/michaelshimeles/skills); `.claude/skills/` links to the same skills |
 | `analysis/OBS_ARCHITECTURE.md` | OBS study |
+| `site/` | Download page: plain HTML and CSS, published to GitHub Pages by `.github/workflows/pages.yml` |

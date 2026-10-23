@@ -26,14 +26,26 @@
 #   NOTARY_KEYCHAIN  keychain holding that profile (default: the login keychain)
 #   SPARKLE_ACCOUNT  login keychain account of the update signing key (default: tape)
 #   NOTARIZE=0       sign and package without notarizing or writing the update feed
+#   DEVELOPER_ID=0   no Developer ID yet: sign with TAPE_SIGN_IDENTITY (else ad hoc), and leave out
+#                    Sparkle, the hardened runtime, notarization and the update feed. macOS warns
+#                    before the first launch, and Check for Updates opens the releases page.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 # Keep build output outside the repo (worktrees share it).
 export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$HOME/.cache/tape-target}"
 
-identity=${SIGN_IDENTITY:-$(security find-identity -v -p codesigning | sed -n 's/.*"\(Developer ID Application: .*\)"$/\1/p' | head -1)}
-[ -n "$identity" ] || { echo "no Developer ID Application certificate in the keychain; set SIGN_IDENTITY" >&2; exit 1; }
-notarize=${NOTARIZE:-1}
+developer_id=${DEVELOPER_ID:-1}
+if [ "$developer_id" = 1 ]; then
+  identity=${SIGN_IDENTITY:-$(security find-identity -v -p codesigning | sed -n 's/.*"\(Developer ID Application: .*\)"$/\1/p' | head -1)}
+  [ -n "$identity" ] || { echo "no Developer ID Application certificate in the keychain; set SIGN_IDENTITY, or DEVELOPER_ID=0" >&2; exit 1; }
+  notarize=${NOTARIZE:-1}
+  # Hardened runtime and a secure timestamp, both required for notarization.
+  hardened=(--options runtime --timestamp)
+else
+  identity=${SIGN_IDENTITY:-${TAPE_SIGN_IDENTITY:--}}
+  notarize=0
+  hardened=()
+fi
 notary=(--keychain-profile "${NOTARY_PROFILE:-tape-notary}")
 [ -z "${NOTARY_KEYCHAIN:-}" ] || notary+=(--keychain "$NOTARY_KEYCHAIN")
 if [ "$notarize" = 1 ] && ! xcrun notarytool history "${notary[@]}" >/dev/null; then
@@ -53,7 +65,7 @@ min_macos=$(plutil -extract LSMinimumSystemVersion raw "$plist")
 # Build for the oldest macOS the app supports rather than the compiler's default.
 export MACOSX_DEPLOYMENT_TARGET=$min_macos
 repo=https://github.com/Tinomuchenje/tape
-sparkle=$(scripts/fetch-sparkle.sh)
+[ "$developer_id" = 0 ] || sparkle=$(scripts/fetch-sparkle.sh)
 sparkle_account=${SPARKLE_ACCOUNT:-tape}
 sparkle_key=$(plutil -extract SUPublicEDKey raw "$plist")
 if [ "$notarize" = 1 ]; then
@@ -118,21 +130,24 @@ cp "$plist" "$app/Contents/Info.plist"
 cp support/AppIcon.icns "$app/Contents/Resources/AppIcon.icns"
 lipo -create -output "$app/Contents/MacOS/tape" \
   "$CARGO_TARGET_DIR/aarch64-apple-darwin/release/tape" "$CARGO_TARGET_DIR/x86_64-apple-darwin/release/tape"
-# The app isn't sandboxed, so Sparkle's XPC services aren't needed; headers and modules are
-# build-time only.
-framework=$app/Contents/Frameworks/Sparkle.framework
-ditto "$sparkle/Sparkle.framework" "$framework"
-for part in XPCServices Headers PrivateHeaders Modules; do
-  rm -rf "${framework:?}/$part" "${framework:?}/Versions/B/$part"
-done
-
 echo "signing as $identity"
-# Inside out, Sparkle's helpers first. The hardened runtime loads Sparkle.framework only when it
-# is signed by the app's own team.
-for code in "$framework/Versions/B/Autoupdate" "$framework/Versions/B/Updater.app" "$framework"; do
-  codesign --force --options runtime --timestamp --sign "$identity" "$code"
-done
-codesign --force --options runtime --timestamp --entitlements support/entitlements.plist --sign "$identity" "$app"
+if [ "$developer_id" = 1 ]; then
+  # The app isn't sandboxed, so Sparkle's XPC services aren't needed; headers and modules are
+  # build-time only.
+  framework=$app/Contents/Frameworks/Sparkle.framework
+  ditto "$sparkle/Sparkle.framework" "$framework"
+  for part in XPCServices Headers PrivateHeaders Modules; do
+    rm -rf "${framework:?}/$part" "${framework:?}/Versions/B/$part"
+  done
+  # Inside out, Sparkle's helpers first. The hardened runtime loads Sparkle.framework only when it
+  # is signed by the app's own team.
+  for code in "$framework/Versions/B/Autoupdate" "$framework/Versions/B/Updater.app" "$framework"; do
+    codesign --force ${hardened[@]+"${hardened[@]}"} --sign "$identity" "$code"
+  done
+else
+  rmdir "$app/Contents/Frameworks"
+fi
+codesign --force ${hardened[@]+"${hardened[@]}"} --entitlements support/entitlements.plist --sign "$identity" "$app"
 codesign --verify --deep --strict --verbose=2 "$app"
 if [ "$notarize" = 1 ]; then
   ditto -c -k --keepParent "$app" "$tmp/Tape.zip"
@@ -152,7 +167,11 @@ hdiutil attach -nobrowse -noautoopen -mountpoint "$tmp/mnt" "$tmp/rw.dmg" >/dev/
 SetFile -a C "$tmp/mnt"
 hdiutil detach "$tmp/mnt" >/dev/null
 hdiutil convert "$tmp/rw.dmg" -format UDZO -ov -o "$dmg"
-codesign --force --timestamp --sign "$identity" "$dmg"
+if [ "$developer_id" = 1 ]; then
+  codesign --force --timestamp --sign "$identity" "$dmg"
+else
+  codesign --force --sign "$identity" "$dmg"
+fi
 if [ "$notarize" = 1 ]; then
   notarize "$dmg" "$dmg"
   spctl --assess --type execute --verbose=2 "$app"

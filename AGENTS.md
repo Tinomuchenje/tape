@@ -113,6 +113,10 @@ and layout.
   don't suggest that Tape is affiliated with the OBS Project.
 - Performance numbers in the README come from measurements recorded in
   `PERFORMANCE.md`.
+- `site/` is the download page at https://tinomuchenje.github.io/tape/: one
+  plain HTML page with inline CSS, no build step, no frameworks, and no
+  analytics, tracking or third-party requests. Its copy describes features the
+  app ships today, and pushing a change to `site/` on `main` publishes it.
 - Don't publish releases or tags unless Tinomuchenje asks.
 
 ## Checks in this repo
@@ -128,6 +132,15 @@ For the app:
 - Format only the files you change. Running `cargo fmt` across the crate once
   reformatted `src/app/mod.rs` and `src/app/ui.rs` by accident, and commit
   `aed1e1a` undid it.
+
+For the site:
+
+- Render `site/index.html` at desktop and phone widths (390 px) in light and
+  dark, and check for horizontal overflow. Headless Chrome won't open a
+  window narrower than about 500 px, so test phone width inside a 390 px
+  iframe.
+- The download link points at
+  `releases/latest/download/Tape.dmg`, so a release must carry `Tape.dmg`.
 
 For every change, `git diff --check` checks whitespace. Keep generated evidence
 under the ignored `.artifacts/` directory.
