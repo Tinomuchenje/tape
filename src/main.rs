@@ -204,7 +204,8 @@ pub struct RecordArgs {
     bg_image: Option<std::path::PathBuf>,
     /// Also save the camera on its own, full frame with the mic, as
     /// NAME-camera.EXT next to the recording and in step with it frame for
-    /// frame (camera scenes other than --scene cam).
+    /// frame (camera scenes other than --scene cam). HEVC at about 6 Mb/s
+    /// for 1080p, or ProRes with --codec prores.
     #[arg(long)]
     save_camera: bool,
     /// Clean up the voice in the mix track and streams: noise suppression

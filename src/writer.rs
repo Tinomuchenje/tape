@@ -248,6 +248,19 @@ impl FrameKey {
     }
 }
 
+/// Encoder settings for the camera file at `w`x`h`. A camera picture is
+/// grainy, so the encoder spends all the bitrate it is given; the screen's
+/// per-pixel rate (tuned for sharp text) made 20 Mb/s 1080p files. HEVC at
+/// 0.1 bits per pixel at a webcam's 30 fps (6.2 Mb/s at 1080p) measured SSIM
+/// 0.993 against those. ProRes keeps ProRes.
+fn camera_spec(main: &VideoSpec, w: usize, h: usize) -> VideoSpec {
+    let (codec, bitrate) = match main.codec {
+        Codec::Prores => (Codec::Prores, main.bitrate),
+        _ => (Codec::Hevc, (((w * h) as f64 * 30.0 * 0.10) as u64).max(2_000_000)),
+    };
+    VideoSpec { width: w, height: h, codec, bitrate, ..main.clone() }
+}
+
 /// The camera alone, full frame, in a second file on the main file's
 /// timeline: same start, same frame slots, same pauses, and the mic.
 struct CamIso {
@@ -666,10 +679,7 @@ impl Sink {
             return;
         };
         let (w, h) = (CVPixelBufferGetWidth(&cam) & !1, CVPixelBufferGetHeight(&cam) & !1);
-        // The main file's quality per pixel, at least 8 Mb/s.
-        let px = (w * h) as f64 / (self.spec.width * self.spec.height).max(1) as f64;
-        let bitrate = ((self.spec.bitrate as f64 * px) as u64).max(8_000_000);
-        let v = VideoSpec { width: w, height: h, bitrate, ..self.spec.clone() };
+        let v = camera_spec(&self.spec, w, h);
         let mic = self.mix_sources[1];
         let mirror = self.compositor.as_ref().is_some_and(|c| c.mirrors());
         match open_output(&path, &v, false, mic, AudioLayout::Stems, false) {
@@ -1467,6 +1477,18 @@ mod tests {
         let p = super::camera_path(Path::new("/m/tape-2026-10-21-101500.mov"));
         assert_eq!(p, Path::new("/m/tape-2026-10-21-101500-camera.mov"));
         assert_eq!(super::camera_path(Path::new("talk.mp4")), Path::new("talk-camera.mp4"));
+    }
+
+    #[test]
+    fn camera_file_is_hevc_at_a_webcam_rate() {
+        use super::{Codec, VideoSpec, camera_spec};
+        let main = VideoSpec { width: 1660, height: 1080, fps: 60, codec: Codec::H264, bitrate: 17_212_000, pixel_format: 0 };
+        let v = camera_spec(&main, 1920, 1080);
+        assert_eq!((v.width, v.height, v.fps, v.codec), (1920, 1080, 60, Codec::Hevc));
+        assert_eq!(v.bitrate, 6_220_800);
+        assert_eq!(camera_spec(&main, 640, 480).bitrate, 2_000_000);
+        let prores = VideoSpec { codec: Codec::Prores, ..main };
+        assert_eq!(camera_spec(&prores, 1920, 1080).codec, Codec::Prores);
     }
 
     #[test]
